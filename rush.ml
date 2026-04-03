@@ -3,7 +3,7 @@
 
 
 (*-----------------------------------------------------------------*)
-(*------------------------------- Type ----------------------------*)
+(*------------------------------ Type -----------------------------*)
 (*-----------------------------------------------------------------*)
 
 type coord = {mutable x:int;mutable y:int}
@@ -14,7 +14,7 @@ type plateau = {dim : int*int ; mutable vlist: voiture list }
 
 
 (*-----------------------------------------------------------------*)
-(*------------------------------- Gestion -------------------------*)
+(*----------------------------- Gestion ---------------------------*)
 (*-----------------------------------------------------------------*)
 
 
@@ -77,46 +77,34 @@ let placer_voiture (p: plateau) (v:voiture):unit=
 *)
 
 
-(*-----------------------------------------------------------------*)
-(*------------------------------- Affichage -----------------------*)
-(*-----------------------------------------------------------------*)
+(*--------------------------------------------------------------------*)
+(*----------------------- Interface Utilisateur ----------------------*)
+(*--------------------------------------------------------------------*)
 
     
 let plateau_vers_matrice (p: plateau):ide array array =
   (*Transforme un plateau en matrice pour l'impression ecran et le retour visuel*)
   let v1 = creer_voiture (Autre 0) (0) (true) (0) (0) in
 
-  let rec placer_voiture_dev (vlist: voiture list) (v:voiture) (i:int) (mat: ide array array):ide array array =
-    (*Place les differentes voitures du plateau stockees dans vlist dans une matrice mat.
-      v est la voiture a placer et i represente la possibilite de placer une partie de la
-      voiture dans la case suivante.*)
-    match vlist with
-    | [] -> mat
-    | v2::tvlist -> 
-    if i>v.taille then (match tvlist with 
-                        | [] when v.id <> v2.id-> placer_voiture_dev [v2] v2 1 mat
-                        | _ -> placer_voiture_dev tvlist v2 1 mat)
-    else 
-      begin
-      match v.id with 
-      | Rouge -> if v.hor then (mat.(v.emp.y).(v.emp.x+(i-1)) <- Rouge;
-                                placer_voiture_dev vlist v (i+1) mat )
+  let rec placer_voiture_dev (vlist: voiture list) (v:voiture) (mat: ide array array):ide array array =
+    (*Place les differentes voitures du plateau stockees dans vlist dans une matrice mat. v est la voiture a 
+      placer et elle est placee entierement dans la matrice avant uneseconde iteration de placer-voiture-dev. *)
+      for i = 0 to (v.taille-1) do 
+        if v.hor then mat.(v.emp.y).(v.emp.x + (i)) <- v.id     (* Place la voiture par case    *)
+        else mat.(v.emp.y + (i)).(v.emp.x) <- v.id              (* qu'elle occupe case par case *)
+      done ;
+      match vlist with 
+      | [] -> mat                                               (* Appel de la fonction de nouveau *) 
+      | v2 :: tvlist -> placer_voiture_dev tvlist v2 mat        (* avec la voiture suivante        *)
+      placer_voiture_dev tvlist 
+    in placer_voiture_dev (p.vlist) v1 (Array.make_matrix 6 6 (Autre 0))   (* Appel initial avec une matrice et 
+                                                                              une voiture vide (taille 0)      *)
 
-                else (mat.(v.emp.y+(i-1) ).(v.emp.x) <- Rouge;
-                  placer_voiture_dev vlist v (i+1) mat )
+                                                                              
 
-      |Autre a -> if v.hor then (mat.(v.emp.y).(v.emp.x+(i-1)) <- Autre a;
-                                  placer_voiture_dev vlist v (i+1) mat )
-
-                  else ( mat.(v.emp.y+(i-1) ).(v.emp.x) <- (Autre a);
-                      placer_voiture_dev vlist v (i+1) mat)
-      end
-
-    in placer_voiture_dev (p.vlist) v1 1 (Array.make_matrix 6 6 (Autre 0))
-
-(*-----------------------------------------------------------------*)
-(*------------------------------- Affichage -----------------------*)
-(*-----------------------------------------------------------------*)
+(*--------------------------------------------------------------------*)
+(*----------------------------- Affichage ----------------------------*)
+(*--------------------------------------------------------------------*)
 
   let rec print_ligne (n:int):unit = 
     (*Affiche une ligne de 4*n _ *)
