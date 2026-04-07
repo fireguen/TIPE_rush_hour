@@ -1,0 +1,1 @@
+07/04/2026 -> on s'est rendu compte que comparer les collisions avec des > et < c'est beaucoup plus efficace qu'avec des =

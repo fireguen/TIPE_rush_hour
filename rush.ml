@@ -18,7 +18,37 @@ type plateau = {dim : int*int ; mutable vlist: voiture list }
 (*-----------------------------------------------------------------*)
 
 
-let collision (vlist: voiture list) (voit:voiture) (dir:direction) :bool= true
+(*pas fini*)
+let dupliquer_voiture (v1:voiture):voiture=
+    {id=v1.ide; taille=v1.taille; hor=v.hor; emp={x=v1.emp.x; y=v1.emp.y}}
+
+
+let rec toucher_lent (v1:voiture) (v2:voiture) (i:int) (j:int):bool=
+  match v1, v2 with
+  | {_;t1; h1; {x1; y1} },{_;t2; h2; {x2; y2} } -> if v1.id=v2.id || i>=t1 || j>=t2 then false
+                                                  else if h1 && h2 then ((x1+i)=(x2+j) && y1=y2) || (toucher_lent v1 v2 i (j+1))  || (toucher_lent v1 v2 (i+1) j)
+                                                  else if h1 && not h2 then ((x1+i)=(x2) && (y1)=(y2+j)) || (toucher_lent v1 v2 i (j+1)) || (toucher_lent v1 v2 (i+1) j)
+                                                  else if not h1 && not h2 then ((x1)=(x2) && (y1+i)=(y2+j)) || (toucher_lent v1 v2 i (j+1)) || (toucher_lent v1 v2 (i+1) j)
+                                                  else ((x1)=(x2+j) && (y1+i)=(y2)) || (toucher_lent v1 v2 i (j+1)) || (toucher_lent v1 v2 (i+1) j)
+                                                      
+let toucher (v1:voiture) (v2:voiture):bool =
+  if v1.id=v2.id then false
+  (* disjonction de cas en fonction de l'orientation des voitures*)
+  else if h1&&h2 then v1.coord.y=v2.coord.y && ( v2.coord.x+v2.taille-1)>=v1.coord.x && (v2.coord.x<=(v1.coord.x+taille-1))
+  else if not h1 && h2 then v1.coord.x=v2.coord.x && ( v2.coord.y+v2.taille-1)>=v1.coord.y && (v2.coord.y<=(v1.coord.y+taille-1))
+  else if not h1 && h2 then v1.coord.y<=v2.coord.y && v2.coord.y<=(v1.coord+taille-1) && v2.coord.x<=v1.coord.x && v1.coord.x<=(v2.coord.x+taille-1)
+(*pas fini*)
+
+
+
+
+
+let collision (vlist: voiture list) (id:ide) (dir:direction) :bool= 
+  let v = trouve_voiture vlist id in
+  let collision_dev
+  match vlist with
+    | []-> false
+    | voit::queue-> toucher voit v 0 0 || collision queue id dir 
 
 
 let trouve_voiture (plat:plateau) (id:ide):voiture=
@@ -55,26 +85,6 @@ let creer_plateau (l:int)(h:int):plateau =
 let ajouter_voiture (p:plateau) (v:voiture):unit=
   p.vlist <- v::p.vlist
 
-(*
-let placer_voiture (p: plateau) (v:voiture):unit=
-  let rec placer_voiture_dev (p:plateau) (v:voiture) (i:int):unit=
-    if i>v.taille then ()
-    else
-    match v.id with 
-    |Rouge -> if v.hor then (p.(v.emp.y).(v.emp.x+(i-1)) <- Rouge;
-                              placer_voiture_dev p v (i+1) )
-
-      else (p.(v.emp.y+(i-1) ).(v.emp.x) <- Rouge;
-            placer_voiture_dev p v (i+1) )
-
-    |Autre a ->  if v.hor then (p.(v.emp.y).(v.emp.x+(i-1))<- Autre a;
-                                placer_voiture_dev p v (i+1) )
-
-      else ( p.(v.emp.y+(i-1) ).(v.emp.x) <- (Autre a);
-            placer_voiture_dev p v (i+1) )
-
-  in placer_voiture_dev p v 1
-*)
 
 
 (*--------------------------------------------------------------------*)
@@ -144,7 +154,6 @@ let affiche_plateau (p1:plateau):unit =
     print_newline ();
     affiche_lignes_plateau (j+1))
   in affiche_lignes_plateau 0
-  
 
 
 
@@ -157,3 +166,7 @@ let ()=
   (ajouter_voiture t v; 
   deplacer_v t v.id Droite;
   affiche_plateau t))
+
+
+
+3.14
