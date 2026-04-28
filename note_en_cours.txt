@@ -1,1 +1,12 @@
 07/04/2026 -> on s'est rendu compte que comparer les collisions avec des > et < c'est beaucoup plus efficace qu'avec des =
+
+voici la version lente
+
+let rec toucher_lent (v1:voiture) (v2:voiture) (i:int) (j:int):bool=
+  match v1, v2 with
+  | {_;t1; h1; {x1; y1} },{_;t2; h2; {x2; y2} } -> if v1.id=v2.id || i>=t1 || j>=t2 then false
+                                                  else if h1 && h2 then ((x1+i)=(x2+j) && y1=y2) || (toucher_lent v1 v2 i (j+1))  || (toucher_lent v1 v2 (i+1) j)
+                                                  else if h1 && not h2 then ((x1+i)=(x2) && (y1)=(y2+j)) || (toucher_lent v1 v2 i (j+1)) || (toucher_lent v1 v2 (i+1) j)
+                                                  else if not h1 && not h2 then ((x1)=(x2) && (y1+i)=(y2+j)) || (toucher_lent v1 v2 i (j+1)) || (toucher_lent v1 v2 (i+1) j)
+                                                  else ((x1)=(x2+j) && (y1+i)=(y2)) || (toucher_lent v1 v2 i (j+1)) || (toucher_lent v1 v2 (i+1) j)
+                                 

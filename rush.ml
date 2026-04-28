@@ -6,7 +6,7 @@
 (*------------------------------ Type -----------------------------*)
 (*-----------------------------------------------------------------*)
 
-type coord = {mutable x:int;mutable y:int}
+type coord = {mutable x:int;mutable y:int} (* coordonees (0,0) en haut a gauche*)
 type ide = Rouge|Autre of int
 type voiture= {id:ide;taille:int;hor:bool;mutable emp:coord} (* emp = coordonée le plus en haut a gauche du vehicule*)
 type direction = Droite|Gauche|Haut|Bas|Immobile
@@ -18,37 +18,30 @@ type plateau = {dim : int*int ; mutable vlist: voiture list }
 (*-----------------------------------------------------------------*)
 
 
-(*pas fini*)
+
 let dupliquer_voiture (v1:voiture):voiture=
-    {id=v1.ide; taille=v1.taille; hor=v.hor; emp={x=v1.emp.x; y=v1.emp.y}}
+  (* duplique v1*)
+    {id=v1.id; taille=v1.taille; hor=v1.hor; emp={x=v1.emp.x; y=v1.emp.y}}
 
-
-let rec toucher_lent (v1:voiture) (v2:voiture) (i:int) (j:int):bool=
-  match v1, v2 with
-  | {_;t1; h1; {x1; y1} },{_;t2; h2; {x2; y2} } -> if v1.id=v2.id || i>=t1 || j>=t2 then false
-                                                  else if h1 && h2 then ((x1+i)=(x2+j) && y1=y2) || (toucher_lent v1 v2 i (j+1))  || (toucher_lent v1 v2 (i+1) j)
-                                                  else if h1 && not h2 then ((x1+i)=(x2) && (y1)=(y2+j)) || (toucher_lent v1 v2 i (j+1)) || (toucher_lent v1 v2 (i+1) j)
-                                                  else if not h1 && not h2 then ((x1)=(x2) && (y1+i)=(y2+j)) || (toucher_lent v1 v2 i (j+1)) || (toucher_lent v1 v2 (i+1) j)
-                                                  else ((x1)=(x2+j) && (y1+i)=(y2)) || (toucher_lent v1 v2 i (j+1)) || (toucher_lent v1 v2 (i+1) j)
-                                                      
+                     
 let toucher (v1:voiture) (v2:voiture):bool =
-  if v1.id=v2.id then false
+  (*indique si v1 et v2 se touche 
+  une voiture se touche elle même*)
+
+  if v1.id=v2.id then true
   (* disjonction de cas en fonction de l'orientation des voitures*)
-  else if h1&&h2 then v1.coord.y=v2.coord.y && ( v2.coord.x+v2.taille-1)>=v1.coord.x && (v2.coord.x<=(v1.coord.x+taille-1))
-  else if not h1 && h2 then v1.coord.x=v2.coord.x && ( v2.coord.y+v2.taille-1)>=v1.coord.y && (v2.coord.y<=(v1.coord.y+taille-1))
-  else if not h1 && h2 then v1.coord.y<=v2.coord.y && v2.coord.y<=(v1.coord+taille-1) && v2.coord.x<=v1.coord.x && v1.coord.x<=(v2.coord.x+taille-1)
-(*pas fini*)
+  
+  (* si les deux voitures sont horizontale*)
+  else if v1.hor && v2.hor then v1.emp.y=v2.emp.y && ( v2.emp.x+v2.taille-1)>=v1.emp.x && (v2.emp.x<=(v1.emp.x+v1.taille-1))
+  
+  (* si les deux voitures sont verticales*)
+  else if not v1.hor && not v2.hor then v2.emp.x=v1.emp.x && v1.emp.y<=(v2.emp.y+v2.taille-1) && v2.emp.y<=(v1.emp.y+v1.taille-1)
 
-
-
-
-
-let collision (vlist: voiture list) (id:ide) (dir:direction) :bool= 
-  let v = trouve_voiture vlist id in
-  let collision_dev
-  match vlist with
-    | []-> false
-    | voit::queue-> toucher voit v 0 0 || collision queue id dir 
+  (* si v1 verticale et v2 horizontale*)
+  else if not v1.hor && v2.hor then (v2.emp.x+v2.taille-1)>=v1.emp.x && v1.emp.x>=v2.emp.x && ( v2.emp.y+v2.taille-1)>=v1.emp.y && (v2.emp.y<=(v1.emp.y+v1.taille-1))
+  
+  (* si v1 horizontale et v2 verticale*)
+  else (v1.emp.x+v1.taille-1)>=v2.emp.x && v2.emp.x>=v1.emp.x && ( v1.emp.y+v1.taille-1)>=v2.emp.y && (v1.emp.y<=(v2.emp.y+v2.taille-1))
 
 
 let trouve_voiture (plat:plateau) (id:ide):voiture=
@@ -61,15 +54,26 @@ let trouve_voiture (plat:plateau) (id:ide):voiture=
                 in trouve_voiture_dev plat.vlist id
 
 
-let deplacer_v (plat:plateau) (id:ide) (d:direction):unit=
+
+
+
+
+let deplacer_v (voit:voiture) (d:direction):unit=
   (* permet de deplacer la voiture v d'un case dans la direction correspond a d *)
-  let voit=trouve_voiture plat id in
     match d with
     |Droite when voit.hor -> voit.emp.x<-voit.emp.x+1
     |Gauche when voit.hor -> voit.emp.x<-voit.emp.x-1
     |Haut when not voit.hor -> voit.emp.y<-voit.emp.y-1
     |Bas when not voit.hor -> voit.emp.y<-voit.emp.y+1
     |_ -> failwith "la direction est pas bonne !!!!!!!!!!!!!!!"
+
+(* à tester *)
+let collision (plat:plateau) (vlist: voiture list) (id:ide) (dir:direction) :bool= 
+  let rec collision_dev (vlist: voiture list) (v1:voiture):bool=
+    match vlist with
+    | []-> false
+    | voit::queue-> toucher voit v1 || collision_dev queue v1
+  in let v = trouve_voiture plat id in let v1=dupliquer_voiture v in (deplacer_v v1 dir; collision_dev vlist v1)
   
 
 
@@ -86,7 +90,7 @@ let ajouter_voiture (p:plateau) (v:voiture):unit=
   p.vlist <- v::p.vlist
 
 
-
+  
 (*--------------------------------------------------------------------*)
 (*----------------------- Interface Utilisateur ----------------------*)
 (*--------------------------------------------------------------------*)
@@ -106,7 +110,6 @@ let plateau_vers_matrice (p: plateau):ide array array =
       match vlist with 
       | [] -> mat                                               (* Appel de la fonction de nouveau *) 
       | v2 :: tvlist -> placer_voiture_dev tvlist v2 mat        (* avec la voiture suivante        *)
-      placer_voiture_dev tvlist 
     in placer_voiture_dev (p.vlist) v1 (Array.make_matrix 6 6 (Autre 0))   (* Appel initial avec une matrice et 
                                                                               une voiture vide (taille 0)      *)
 
@@ -159,14 +162,13 @@ let affiche_plateau (p1:plateau):unit =
 
 let jeu (p: int array array) (v: voiture list)=()
 
-let ()=
+let ()= ()
 
-  let t=creer_plateau 6 6 in
+  (*let t=creer_plateau 6 6 in
   (let v=creer_voiture Rouge 2 true 0 0 in
   (ajouter_voiture t v; 
   deplacer_v t v.id Droite;
-  affiche_plateau t))
+  affiche_plateau t))*)
 
 
 
-3.14
