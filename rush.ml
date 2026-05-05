@@ -65,15 +65,20 @@ let deplacer_v (voit:voiture) (d:direction):unit=
     |Gauche when voit.hor -> voit.emp.x<-voit.emp.x-1
     |Haut when not voit.hor -> voit.emp.y<-voit.emp.y-1
     |Bas when not voit.hor -> voit.emp.y<-voit.emp.y+1
+    |Immobile -> ()
     |_ -> failwith "la direction est pas bonne !!!!!!!!!!!!!!!"
 
-(* à tester *)
-let collision (plat:plateau) (vlist: voiture list) (id:ide) (dir:direction) :bool= 
+
+let collision (plat:plateau)(id:ide) (dir:direction) :bool= 
+  (* fonction permettant de savoir si la voiture d'identifiant id entre en collision avec une autre voiture presente sur le 
+  plateau apres s'etre deplacer de dir. Cette fonction ne deplace pas la voiture en question
+  renvois true si la voiture est en contact et false sinon*)
   let rec collision_dev (vlist: voiture list) (v1:voiture):bool=
     match vlist with
-    | []-> false
-    | voit::queue-> toucher voit v1 || collision_dev queue v1
-  in let v = trouve_voiture plat id in let v1=dupliquer_voiture v in (deplacer_v v1 dir; collision_dev vlist v1)
+    | voit::queue when voit.id!= v1.id-> toucher voit v1 || collision_dev queue v1
+    | _-> false (* si liste vide ou comparaison avec sois-meme*)
+  
+  in let v = trouve_voiture plat id in let v1=dupliquer_voiture v in (deplacer_v v1 dir; collision_dev palt.vlist v1)
   
 
 
@@ -162,13 +167,13 @@ let affiche_plateau (p1:plateau):unit =
 
 let jeu (p: int array array) (v: voiture list)=()
 
-let ()= ()
-
-  (*let t=creer_plateau 6 6 in
+let ()=
+  
+  let t=creer_plateau 6 6 in 
   (let v=creer_voiture Rouge 2 true 0 0 in
   (ajouter_voiture t v; 
-  deplacer_v t v.id Droite;
-  affiche_plateau t))*)
+  deplacer_v v Droite;
+  affiche_plateau t))
 
 
 
