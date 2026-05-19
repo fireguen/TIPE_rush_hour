@@ -43,7 +43,6 @@ let toucher (v1:voiture) (v2:voiture):bool =
   (* si v1 horizontale et v2 verticale*)
   else (v1.emp.x+v1.taille-1)>=v2.emp.x && v2.emp.x>=v1.emp.x && ( v1.emp.y+v1.taille-1)>=v2.emp.y && (v1.emp.y<=(v2.emp.y+v2.taille-1))
 
-
 let trouve_voiture (plat:plateau) (id:ide):voiture=
     (* trouve la voiture qui a l'id id dans plateau*)
     let rec trouve_voiture_dev (vl: voiture list) (id:ide)=
@@ -166,6 +165,16 @@ let affiche_plateau (p1:plateau):unit =
 
 
 let jeu (p: int array array) (v: voiture list)=()
+
+(*--------------------------------------------------------------------*)
+(*------------------------------ le bot  -----------------------------*)
+(*--------------------------------------------------------------------*)
+
+
+
+
+
+
 
 let ()=
   
