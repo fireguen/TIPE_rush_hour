@@ -11,6 +11,65 @@ type ide = Rouge|Autre of int
 type voiture= {id:ide;taille:int;hor:bool;mutable emp:coord} (* emp = coordonée le plus en haut a gauche du vehicule*)
 type direction = Droite|Gauche|Haut|Bas|Immobile
 type plateau = {dim : int*int ; mutable vlist: voiture list }
+type arbre = Noeud of int * arbre list
+type 'a file = {  entree:'a list; sortie:'a list}
+
+
+(*-----------------------------------------------------------------*)
+(*------------------------------arbre------------------------------*)
+(*-----------------------------------------------------------------*)
+
+let new_arbre (valeur:int):arbre =
+  (* cree un nouvelle arbre qui a comme valeur de noeud valeur*)
+  Noeud (valeur,[])
+
+let ajouter_noeud (nouveau:arbre) (arb:arbre):arbre=
+  (*ajoute nouveau aux fils de arb*)
+  match arb with
+  |Noeud (x, liste) ->Noeud (x, nouveau::liste)
+
+let find_fils (valeur:int) (arb:arbre):arbre=
+  (* recherche le noeud des fils directes de arb s'il est present*)
+
+  let rec enleve_list (valeur:int) (liste:arbre list):arbre=
+    (*trouve le noeud de la liste liste s'il est present failwith sinon*)
+    match liste with
+      |[]-> failwith "l'element n'est pas present parmis les fils directes"
+      |(Noeud (info, fils))::reste-> if info=valeur then Noeud(info, fils) else enleve_list valeur reste
+  
+  in
+  match arb with
+  | Noeud(valeur, fils) -> enleve_list valeur fils
+
+  
+(*-----------------------------------------------------------------*)
+(*------------------------------file-------------------------------*)
+(*-----------------------------------------------------------------*)
+
+let creer_file ():'a file=
+  (* creer un file vide*)  
+  {entree=[]; sortie=[]}
+
+let est_vide (fi:'a file):bool= 
+  (*indique si fi est vide*)
+  fi = creer_file()
+
+let enfile (fi:'a file) (el:'a):'a file=
+  (* ajoute el a fi *)
+  {entree=el::fi.entree; sortie=fi.sortie}
+
+let rec defile (fi:'a file): 'a*'a file=
+  (*enleve le dernier element de la file et le renvois si la file n'est pas vide*)
+  match fi.entree, fi.sortie with
+    |[],[]-> failwith "votre pile est vide"
+    |entre, []-> defile {entree=[];sortie= List.rev (entre)}
+    |_,a::b -> (a,{entree=fi.entree;sortie=b})
+
+
+
+
+
+
 
 
 (*-----------------------------------------------------------------*)
@@ -77,7 +136,7 @@ let collision (plat:plateau)(id:ide) (dir:direction) :bool=
     | voit::queue when voit.id!= v1.id-> toucher voit v1 || collision_dev queue v1
     | _-> false (* si liste vide ou comparaison avec sois-meme*)
   
-  in let v = trouve_voiture plat id in let v1=dupliquer_voiture v in (deplacer_v v1 dir; collision_dev palt.vlist v1)
+  in let v = trouve_voiture plat id in let v1=dupliquer_voiture v in (deplacer_v v1 dir; collision_dev plat.vlist v1)
   
 
 
@@ -171,7 +230,19 @@ let jeu (p: int array array) (v: voiture list)=()
 (*--------------------------------------------------------------------*)
 
 
-
+(*
+let recherche_solution (p : plateau) : int list * arbre = 
+  let rec aaa (pf : plateau file) (p : plateau)  = 
+    match p.vlist with
+    | [] -> 
+    | v::tvl -> if 
+  in
+  let rec construit_file_enfant (pf_parent : plateau file) (pf_enfant : plateau file) : plateau file = 
+    if (est_vide pf_parent) then pf_enfant 
+    else let p = defile pf_parent in 
+      
+let tab_to_int (plat:plateau):int=
+*)
 
 
 
