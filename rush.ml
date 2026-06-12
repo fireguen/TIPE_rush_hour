@@ -6,11 +6,18 @@
 (*------------------------------ Type -----------------------------*)
 (*-----------------------------------------------------------------*)
 
-type coord = {mutable x:int;mutable y:int} (* coordonees (0,0) en haut a gauche*)
+type coord = {mutable x:int;mutable y:int} 
+(* coordonees (0,0) en haut a gauche*)
+
 type ide = Rouge|Autre of int
-type voiture= {id:ide;taille:int;hor:bool;mutable emp:coord} (* emp = coordonée le plus en haut a gauche du vehicule*)
+
+type voiture= {id:ide;taille:int;hor:bool; emp:coord} 
+(* emp = coordonée le plus en haut a gauche du vehicule*)
+
+
 type direction = Droite|Gauche|Haut|Bas|Immobile
 type plateau = {dim : int*int ; mutable vlist: voiture list }
+
 type arbre = Noeud of int * arbre list
 type 'a file = {  entree:'a list; sortie:'a list}
 
@@ -82,7 +89,11 @@ let dupliquer_voiture (v1:voiture):voiture=
   (* duplique v1*)
     {id=v1.id; taille=v1.taille; hor=v1.hor; emp={x=v1.emp.x; y=v1.emp.y}}
 
-                     
+    
+let dupliquer_plateau (p:plateau):plateau =
+  {dim=p.dim; vlist=p.vlist}
+
+
 let toucher (v1:voiture) (v2:voiture):bool =
   (*indique si v1 et v2 se touche 
   une voiture se touche elle même*)
@@ -133,7 +144,7 @@ let collision (plat:plateau)(id:ide) (dir:direction) :bool=
   renvois true si la voiture est en contact et false sinon*)
   let rec collision_dev (vlist: voiture list) (v1:voiture):bool=
     match vlist with
-    | voit::queue when voit.id!= v1.id-> toucher voit v1 || collision_dev queue v1
+    | voit::queue when voit.id <> v1.id -> toucher voit v1 || collision_dev queue v1
     | _-> false (* si liste vide ou comparaison avec sois-meme*)
   
   in let v = trouve_voiture plat id in let v1=dupliquer_voiture v in (deplacer_v v1 dir; collision_dev plat.vlist v1)
@@ -141,8 +152,7 @@ let collision (plat:plateau)(id:ide) (dir:direction) :bool=
 
 
 
-let creer_voiture (i:ide) (t:int) (h:bool) (ixe:int) (i_grec:int):voiture=
-  {id=i; taille=t; hor=h; emp={x=ixe; y=i_grec}}
+let creer_voiture (i:ide) (t:int) (h:bool) (ixe:int) (i_grec:int):voiture =(* if (i=Autre 0) then failwith"Identifiant 0 interdit" else*) {id=i; taille=t; hor=h; emp={x=ixe; y=i_grec}}
 
 
 let creer_plateau (l:int)(h:int):plateau = 
@@ -226,34 +236,61 @@ let affiche_plateau (p1:plateau):unit =
 let jeu (p: int array array) (v: voiture list)=()
 
 (*--------------------------------------------------------------------*)
-(*------------------------------ le bot  -----------------------------*)
+(*------------------------------ le Bot  -----------------------------*)
 (*--------------------------------------------------------------------*)
 
 
+let rec power (a:int) (n:int):int =
+  if n = 0 then 1
+  else let b = power a (n/2) in
+  if n mod 2 = 0 then b * b
+  else a * b * b
+
+
+    
+let plat_to_int (plat:plateau):int = 
+  let t_plat1,t_plat2 = plat.dim 
+  in
+  let rec voiture_to_int (plat : plateau) (t_plat : int) (valeur_hach : int) : int =
+    match plat.vlist with
+    | [] -> valeur_hach
+    | v :: tp -> begin match v.id with
+                        |Rouge -> if (v.hor) then voiture_to_int plat t_plat (valeur_hach + v.emp.x)
+                                                     else voiture_to_int plat t_plat (valeur_hach + v.emp.y)
+                        |Autre a -> if (v.hor) then voiture_to_int plat t_plat (valeur_hach + v.emp.x*(power t_plat a))
+                                                     else voiture_to_int plat t_plat (valeur_hach + v.emp.y*(power t_plat a)) end
+  in voiture_to_int plat (max t_plat1 t_plat2) 0 
 (*
+
 let recherche_solution (p : plateau) : int list * arbre = 
-  let rec aaa (pf : plateau file) (p : plateau)  = 
+  let t_plat1,t_plat2 = plat.dim
+  in
+  let intp , t_plat = plat_to_int p , maximum_int t_plat1 t_plat2
+  in
+  let rec enfants_of_p (pf : plateau file) (p : plateau) (parbre : arbre) (enfantsl : plateau list):plateau list = 
     match p.vlist with
-    | [] -> 
-    | v::tvl -> if 
+    | [] -> enfantsl
+    | v::tvl -> let idv = match v.ide with |Rouge -> 0 |Autre x -> x in
+                let Noeud n al = parbre in 
+                if not (collision p v.ide Bas || collision p v.ide Droite) then ajouter_noeud (Noeud (n+(power t_plat idv)) []) parbre; enfantsl=(deplacer_v v Haut)::enfantsl
   in
   let rec construit_file_enfant (pf_parent : plateau file) (pf_enfant : plateau file) : plateau file = 
     if (est_vide pf_parent) then pf_enfant 
     else let p = defile pf_parent in 
-      
-let tab_to_int (plat:plateau):int=
 *)
-
 
 
 
 let ()=
   
-  let t=creer_plateau 6 6 in 
-  (let v=creer_voiture Rouge 2 true 0 0 in
+  let t = creer_plateau 6 6 in 
+  let l = [t] in
+  let v=creer_voiture Rouge 2 true 0 0 in
   (ajouter_voiture t v; 
-  deplacer_v v Droite;
-  affiche_plateau t))
+  let a = match l with |x::tl->x |[] -> failwith"casse les couilles" in
+  (deplacer_v v Droite;
+  affiche_plateau t;
+  affiche_plateau a))
 
 
 
