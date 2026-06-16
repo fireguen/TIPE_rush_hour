@@ -84,6 +84,18 @@ let rec defile (fi:'a file): 'a*'a file=
 (*-----------------------------------------------------------------*)
 
 
+let creer_voiture (i:ide) (t:int) (h:bool) (ixe:int) (i_grec:int):voiture =
+  (* if (i=Autre 0) then failwith"Identifiant 0 interdit" else*)
+   {id=i; taille=t; hor=h; emp={x=ixe; y=i_grec}}
+
+
+let creer_plateau (l:int)(h:int):plateau = 
+  (*Cree un plateau de taille l par h contenant une liste de voiture vide*)
+  {dim = (l,h); vlist=[]}
+
+let ajouter_voiture (p:plateau) (v:voiture):unit=
+  p.vlist <- v::p.vlist
+
 
 let dupliquer_voiture (v1:voiture):voiture=
   (* duplique v1*)
@@ -123,10 +135,6 @@ let trouve_voiture (plat:plateau) (id:ide):voiture=
                 in trouve_voiture_dev plat.vlist id
 
 
-
-
-
-
 let deplacer_v (voit:voiture) (d:direction):unit=
   (* permet de deplacer la voiture v d'un case dans la direction correspond a d *)
     match d with
@@ -149,20 +157,6 @@ let collision (plat:plateau)(id:ide) (dir:direction) :bool=
   
   in let v = trouve_voiture plat id in let v1=dupliquer_voiture v in (deplacer_v v1 dir; collision_dev plat.vlist v1)
   
-
-
-
-let creer_voiture (i:ide) (t:int) (h:bool) (ixe:int) (i_grec:int):voiture =(* if (i=Autre 0) then failwith"Identifiant 0 interdit" else*) {id=i; taille=t; hor=h; emp={x=ixe; y=i_grec}}
-
-
-let creer_plateau (l:int)(h:int):plateau = 
-  (*Cree un plateau de taille l par h contenant une liste de voiture vide*)
-  {dim = (l,h); vlist=[]}
-
-let ajouter_voiture (p:plateau) (v:voiture):unit=
-  p.vlist <- v::p.vlist
-
-
   
 (*--------------------------------------------------------------------*)
 (*----------------------- Interface Utilisateur ----------------------*)
@@ -236,7 +230,7 @@ let affiche_plateau (p1:plateau):unit =
 let jeu (p: int array array) (v: voiture list)=()
 
 (*--------------------------------------------------------------------*)
-(*------------------------------ le Bot  -----------------------------*)
+(*------------------------------ Robot  ------------------------------*)
 (*--------------------------------------------------------------------*)
 
 
