@@ -67,7 +67,7 @@ let enfile (fi:'a file) (el:'a):'a file =
   else fi
 
 let rec defile (fi:'a file): 'a*'a file=
-  (*enleve le dernier element de la file et le renvois si la file n'est pas vide*)
+  (*enleve le dernier element de la file et le renvoie si la file n'est pas vide*)
   match fi.entree, fi.sortie with
     |[],[]-> failwith "votre pile est vide"
     |entre, []-> defile {entree=[];sortie= List.rev (entre)}
@@ -98,7 +98,7 @@ let dupliquer_voiture (v1:voiture):voiture=
 
     
 let dupliquer_plateau (p:plateau):plateau =
-  {dim=p.dim; vlist=p.vlist}
+  {dim=p.dim; vlist=List.map (fun x -> x) p.vlist}
 
 
 let toucher (v1:voiture) (v2:voiture):bool =
@@ -127,7 +127,7 @@ let trouve_voiture (plat:plateau) (id:ide):voiture=
         | []-> failwith " il n'existe pas de voiture avec un tel id sur le plateau"
         | a::b -> if a.id=id then a 
                   else trouve_voiture_dev b id
-                in trouve_voiture_dev plat.vlist id
+    in trouve_voiture_dev plat.vlist id
 
 
 let deplacer_v (voit:voiture) (d:direction):unit=
@@ -138,7 +138,6 @@ let deplacer_v (voit:voiture) (d:direction):unit=
     |Haut when not voit.hor -> voit.emp.y<-voit.emp.y-1
     |Bas when not voit.hor -> voit.emp.y<-voit.emp.y+1
     |Immobile -> ()
-    |_ -> failwith "la direction est pas bonne !!!!!!!!!!!!!!!"
 
 
 let collision (plat:plateau)(id:ide) (dir:direction) :bool= 
@@ -152,7 +151,8 @@ let collision (plat:plateau)(id:ide) (dir:direction) :bool=
   
   in let v = trouve_voiture plat id in let v1=dupliquer_voiture v in (deplacer_v v1 dir; collision_dev plat.vlist v1)
   
-  
+
+  (*
 
 (*--------------------------------------------------------------------*)
 (*------------------------------ Robot  ------------------------------*)
@@ -208,7 +208,7 @@ let recherche_solution (p : plateau) : int list * arbre =
   in
   
 
-
+*)
 
 (*--------------------------------------------------------------------*)
 (*----------------------- Interface Utilisateur ----------------------*)
@@ -221,7 +221,7 @@ let plateau_vers_matrice (p: plateau):ide array array =
 
   let rec placer_voiture_dev (vlist: voiture list) (v:voiture) (mat: ide array array):ide array array =
     (*Place les differentes voitures du plateau stockees dans vlist dans une matrice mat. v est la voiture a 
-      placer et elle est placee entierement dans la matrice avant uneseconde iteration de placer-voiture-dev. *)
+      placer et elle est placee entierement dans la matrice avant une seconde iteration de placer-voiture-dev. *)
       for i = 0 to (v.taille-1) do 
         if v.hor then mat.(v.emp.y).(v.emp.x + (i)) <- v.id     (* Place la voiture par case    *)
         else mat.(v.emp.y + (i)).(v.emp.x) <- v.id              (* qu'elle occupe case par case *)
