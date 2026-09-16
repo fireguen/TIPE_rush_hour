@@ -103,7 +103,7 @@ let dupliquer_voiture (v1:voiture):voiture=
 
     
 let dupliquer_plateau (p:plateau):plateau =
-  {dim=p.dim; vlist=List.map (fun x -> dupliquer_voiture x) p.vlist}
+  {dim=p.dim; vlist=List.map (fun x -> dupliquer_voiture dupliquer_voiture(x)) p.vlist}
 
 
 let toucher (v1:voiture) (v2:voiture):bool =
@@ -179,7 +179,7 @@ let plat_to_int (plat:plateau):int =
   let t_plat1,t_plat2 = plat.dim 
   in
   let rec voiture_to_int (v_list : voiture list) (t_plat : int) (valeur_hach : int) : int =
-    match v_list with (* *)
+    match v_list with
     | [] -> valeur_hach
     | v :: reste -> begin match v.id with
                                                   (* si voiture rouge horizontale -> ajoute <position en x> *)
@@ -192,8 +192,49 @@ let plat_to_int (plat:plateau):int =
                                                      else voiture_to_int reste t_plat (valeur_hach + v.emp.y*(power t_plat a)) end
   in voiture_to_int plat.vlist (max t_plat1 t_plat2) 0 
 
+let recupere_int(taille:int)(voit_int):int*int=
+  (* recupere et enleve le premier bise en base taille de voit_int*)
+  let res = voit_int mod taille in
+  let rest_voit_int = (voit_int-res)/taille in
+  (rest_voit_int,res)
 
+let int_to_id(vale:int):ide=
+  (*rouge si vale =0, (Autre vale) sinon*)
+  if vale=0 then Rouge
+  else (Autre vale)
 
+let teleporte_voiture (voit:voiture)(pos:int):unit=
+  if voit.hor then
+      voit.emp.x<-pos
+  else
+      voit.emp.y<-pos
+
+let rec teleporte_voiture_list (voits:voiture list)(id_recherche:ide)(position:int):unit=
+  match voits with
+  |voit_courant::reste-> if voit_courant.id =id_recherche then teleporte_voiture voit_courant position
+  |[] -> raise (Invalid_argument "la voiture recherche n'est pas sur le plateau")
+
+    
+let int_to_plat(pos_init:plateau)(voit_int:int):plateau=
+  let rec plateau_from_int(pos_init:plateau)(voit_int:int)(nb:int):unit=
+    (* convertit un plateau sous forme d'int a un plateau de type plateau*)
+    let taille1, taille2 = pos_init.dim in
+    let size = (max taille1 taille2) in 
+    let reste, vale = recupere_int size voit_int in
+    let id_recherche = int_to_id nb in
+    if (vale, reste)<>(0,0) then (
+      teleporte_voiture_list   pos_init.vlist    id_recherche vale;
+      plateau_from_int pos_init reste (nb+1))
+    else 
+    ()
+      
+
+  in
+  let res = dupliquer_plateau pos_init in
+  plateau_from_int res voit_int 0;
+  res
+
+(*
 let rec construit_file_enfant (pf_parent : plateau file) (pf_enfant : plateau file) : plateau file = 
   (*    Construit une file de toutes les positions atteignables legalement (en 1 mouvement)
          a partir de toutes les positions parentes fournient dans la file parent               *)
