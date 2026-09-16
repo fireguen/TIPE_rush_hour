@@ -152,7 +152,7 @@ let collision (plat:plateau)(id:ide) (dir:direction) :bool=
   in let v = trouve_voiture plat id in let v1=dupliquer_voiture v in (deplacer_v v1 dir; collision_dev plat.vlist v1)
   
 
-  (*
+
 
 (*--------------------------------------------------------------------*)
 (*------------------------------ Robot  ------------------------------*)
@@ -173,7 +173,7 @@ let plat_to_int (plat:plateau):int =
   let t_plat1,t_plat2 = plat.dim 
   in
   let rec voiture_to_int (v_list : voiture list) (t_plat : int) (valeur_hach : int) : int =
-    match v_list with (* *)
+    match v_list with
     | [] -> valeur_hach
     | v :: reste -> begin match v.id with
                                                   (* si voiture rouge horizontale -> ajoute <position en x> *)
@@ -186,8 +186,12 @@ let plat_to_int (plat:plateau):int =
                                                      else voiture_to_int reste t_plat (valeur_hach + v.emp.y*(power t_plat a)) end
   in voiture_to_int plat.vlist (max t_plat1 t_plat2) 0 
 
+let int_to_pat(pos_init:plateau)(voit_list:int):int=
+    let taille1, taille2 = pos_init.dim in
+    let size_car = (max taille1 taille2) in 
+    
 
-
+(*
 let rec construit_file_enfant (pf_parent : plateau file) (pf_enfant : plateau file) : plateau file = 
   if (est_vide pf_parent) then pf_enfant 
   else let p = defile pf_parent
