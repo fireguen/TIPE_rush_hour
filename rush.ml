@@ -306,8 +306,7 @@ let ()=
   let a = match l with |x::tl->x |[] -> failwith"casse les couilles" in
   (deplacer_v v Droite;
   affiche_plateau t;
-  affiche_plateau a;
-  print_int (plat_to_int t)))
+  affiche_plateau a;))
 
 
 
