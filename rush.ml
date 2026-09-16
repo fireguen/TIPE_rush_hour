@@ -19,7 +19,7 @@ type direction = Droite|Gauche|Haut|Bas|Immobile
 type plateau = {dim : int*int ; mutable vlist: voiture list }
 
 type arbre = Noeud of int * arbre list
-type 'a file = {  entree:'a list; sortie:'a list}
+type 'a file = { mutable entree:'a list; mutable sortie:'a list}
 
 
 (*-----------------------------------------------------------------*)
@@ -67,17 +67,16 @@ let est_vide (fi:'a file):bool=
   (*indique si fi est vide*)
   fi = creer_file()
 
-let enfile (fi:'a file) (el:'a):'a file = 
+let enfile (fi:'a file) (el:'a):unit = 
   (* ajoute el a fi *)
-  if not (List.mem el fi.entree || List.mem el fi.sortie ) then {entree=el::fi.entree; sortie=fi.sortie}
-  else fi
+  fi.entree <- el::fi.entree
 
-let rec defile (fi:'a file): 'a*'a file=
+let rec defile (fi:'a file): 'a =
   (*enleve le dernier element de la file et le renvoie si la file n'est pas vide*)
   match fi.entree, fi.sortie with
     |[],[]-> failwith "votre pile est vide"
-    |entre, []-> defile {entree=[];sortie= List.rev (entre)}
-    |_,a::b -> (a,{entree=fi.entree;sortie=b})
+    |entre, []-> fi.sortie <- List.rev entre ; fi.entree <- [] ; defile fi
+    |_,a::b -> fi.sortie <- b ; a
 
 
 (*-----------------------------------------------------------------*)
@@ -104,7 +103,7 @@ let dupliquer_voiture (v1:voiture):voiture=
 
     
 let dupliquer_plateau (p:plateau):plateau =
-  {dim=p.dim; vlist=List.map (fun x -> x) p.vlist}
+  {dim=p.dim; vlist=List.map (fun x -> dupliquer_voiture x) p.vlist}
 
 
 let toucher (v1:voiture) (v2:voiture):bool =
@@ -193,25 +192,52 @@ let plat_to_int (plat:plateau):int =
                                                      else voiture_to_int reste t_plat (valeur_hach + v.emp.y*(power t_plat a)) end
   in voiture_to_int plat.vlist (max t_plat1 t_plat2) 0 
 
-(*
+
 
 let rec construit_file_enfant (pf_parent : plateau file) (pf_enfant : plateau file) : plateau file = 
-  if (est_vide pf_parent) then pf_enfant
-  else let p = defile pf_parent
+  (*    Construit une file de toutes les positions atteignables legalement (en 1 mouvement)
+         a partir de toutes les positions parentes fournient dans la file parent               *)
+  if (est_vide pf_parent) then pf_enfant   (* Cas de base ou pf_parent est vide*)
+  else 
+    let p = defile pf_parent in  (* Selection du prochain plateau dont on va construire les enfants *)
+    let rec ajoute_file_enfants_p (vl : voiture list): unit = 
+      (* Ajoute tous les positions atteignables legalement en 1 mouvement de la position observee a la file des enfants *)
+      match vl with 
+      | [] -> ()
+      | v :: tvl ->(if v.hor then
+                      (if not (collision p v.id Droite) then 
+                        let p1 = dupliquer_plateau p in let v1 = trouve_voiture p1 v.id in (deplacer_v v1 Droite ; enfile pf_enfant p1 ) 
+                      else ();
+                      if not (collision p v.id Gauche) then 
+                        let p1 = dupliquer_plateau p in let v1 = trouve_voiture p1 v.id in (deplacer_v v1 Gauche ; enfile pf_enfant p1 ) 
+                      else ())
+                    else
+                      (if not (collision p v.id Haut) then 
+                        let p1 = dupliquer_plateau p in let v1 = trouve_voiture p1 v.id in (deplacer_v v1 Haut ; enfile pf_enfant p1 )   
+                      else ();
+                      if not (collision p v.id Bas) then 
+                        let p1 = dupliquer_plateau p in let v1 = trouve_voiture p1 v.id in (deplacer_v v Bas ; enfile pf_enfant p1 )       
+                      else ())
+                    ;ajoute_file_enfants_p tvl)
+    in (ajoute_file_enfants_p p.vlist; construit_file_enfant pf_parent pf_enfant)
+
+
+
+
+(*
 
 let rec enfants_of_p (pf : plateau file) (p : plateau) (parbre : arbre) (enfantsl : plateau list):plateau list = 
     match p.vlist with
     | [] -> enfantsl
     | v::tvl -> let idv = match v.ide with |Rouge -> 0 |Autre x -> x in
                 let Noeud n al = parbre in 
-                  if not (collision p v.ide Bas || collision p v.ide Droite) then ajouter_noeud (Noeud (n+(power t_plat idv)) []) parbre;
-                  enfantsl=(deplacer_v v Haut)::enfantsl
+                  if not (collision p v.ide Bas || collision p v.ide Droite) then 
 
 
 let recherche_solution (p : plateau) : int list * arbre = 
   let t_plat1,t_plat2 = plat.dim
   in
-  let intp , t_plat = (plat_to_int p ), maximum_int t_plat1 t_plat2
+  let intp , t_plat = (plat_to_int p ), max t_plat1 t_plat2
   in
   
 *)
@@ -226,6 +252,8 @@ let plateau_vers_matrice (p: plateau):ide array array =
   (*Transforme un plateau en matrice pour l'impression ecran et le retour visuel*)
   let v1 = creer_voiture (Autre 0) (0) (true) (0) (0) in
 
+  let dim1,dim2 = p.dim in
+
   let rec placer_voiture_dev (vlist: voiture list) (v:voiture) (mat: ide array array):ide array array =
     (*Place les differentes voitures du plateau stockees dans vlist dans une matrice mat. v est la voiture a 
       placer et elle est placee entierement dans la matrice avant une seconde iteration de placer-voiture-dev. *)
@@ -236,7 +264,7 @@ let plateau_vers_matrice (p: plateau):ide array array =
       match vlist with 
       | [] -> mat                                               (* Appel de la fonction de nouveau *) 
       | v2 :: tvlist -> placer_voiture_dev tvlist v2 mat        (* avec la voiture suivante        *)
-    in placer_voiture_dev (p.vlist) v1 (Array.make_matrix 6 6 (Autre 0))   (* Appel initial avec une matrice et 
+    in placer_voiture_dev (p.vlist) v1 (Array.make_matrix dim1 dim2 (Autre 0))   (* Appel initial avec une matrice et 
                                                                               une voiture vide (taille 0)      *)
 
                                                                               
@@ -299,14 +327,18 @@ let affiche_plateau (p1:plateau):unit =
 
 let ()=
   
-  let t = creer_plateau 6 6 in 
+  let t = creer_plateau 10 10 in 
   let l = [t] in
   let v=creer_voiture Rouge 2 true 0 0 in
-  (ajouter_voiture t v; 
-  let a = match l with |x::tl->x |[] -> failwith"casse les couilles" in
-  (deplacer_v v Droite;
+  let v2 = creer_voiture (Autre 17) 2 true 6 1 in 
+  (ajouter_voiture t v;
+  ajouter_voiture t v2; 
+  deplacer_v v Droite;
   affiche_plateau t;
-  affiche_plateau a;print_int(plat_to_int t)))
+  print_newline ();
+  print_int(plat_to_int t);
+  print_newline();
+  let f = {entree = l; sortie = []} in let f2 = construit_file_enfant f {entree = [];sortie = []} in (affiche_plateau (defile f2);affiche_plateau (defile f2);affiche_plateau (defile f2);affiche_plateau (defile f2)))
 
 
 
