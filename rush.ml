@@ -23,13 +23,13 @@ type 'a file = {  entree:'a list; sortie:'a list}
 
 
 (*-----------------------------------------------------------------*)
-(*---------------------------Exeption------------------------------*)
+(*-------------------------- Exeption -----------------------------*)
 (*-----------------------------------------------------------------*)
 
 exception Invalid_movement
 
 (*-----------------------------------------------------------------*)
-(*------------------------------arbre------------------------------*)
+(*----------------------------- Arbre -----------------------------*)
 (*-----------------------------------------------------------------*)
 
 let new_arbre (valeur:int):arbre =
@@ -56,7 +56,7 @@ let find_fils (valeur:int) (arb:arbre):arbre=
 
   
 (*-----------------------------------------------------------------*)
-(*------------------------------file-------------------------------*)
+(*----------------------------- File ------------------------------*)
 (*-----------------------------------------------------------------*)
 
 let creer_file ():'a file=
@@ -144,7 +144,7 @@ let deplacer_v (voit:voiture) (d:direction):unit=
     |Haut when not voit.hor -> voit.emp.y<-voit.emp.y-1
     |Bas when not voit.hor -> voit.emp.y<-voit.emp.y+1
     |Immobile -> ()
-    | _ raise Invalid_movement 
+    | _ -> raise Invalid_movement 
 
 
 let collision (plat:plateau)(id:ide) (dir:direction) :bool= 
@@ -306,7 +306,7 @@ let ()=
   let a = match l with |x::tl->x |[] -> failwith"casse les couilles" in
   (deplacer_v v Droite;
   affiche_plateau t;
-  affiche_plateau a;))
+  affiche_plateau a;print_int(plat_to_int t)))
 
 
 
