@@ -23,6 +23,12 @@ type 'a file = {  entree:'a list; sortie:'a list}
 
 
 (*-----------------------------------------------------------------*)
+(*---------------------------Exeption------------------------------*)
+(*-----------------------------------------------------------------*)
+
+exception Invalid_movement
+
+(*-----------------------------------------------------------------*)
 (*------------------------------arbre------------------------------*)
 (*-----------------------------------------------------------------*)
 
@@ -138,6 +144,7 @@ let deplacer_v (voit:voiture) (d:direction):unit=
     |Haut when not voit.hor -> voit.emp.y<-voit.emp.y-1
     |Bas when not voit.hor -> voit.emp.y<-voit.emp.y+1
     |Immobile -> ()
+    | _ raise Invalid_movement 
 
 
 let collision (plat:plateau)(id:ide) (dir:direction) :bool= 
@@ -152,7 +159,7 @@ let collision (plat:plateau)(id:ide) (dir:direction) :bool=
   in let v = trouve_voiture plat id in let v1=dupliquer_voiture v in (deplacer_v v1 dir; collision_dev plat.vlist v1)
   
 
-  (*
+
 
 (*--------------------------------------------------------------------*)
 (*------------------------------ Robot  ------------------------------*)
@@ -186,10 +193,10 @@ let plat_to_int (plat:plateau):int =
                                                      else voiture_to_int reste t_plat (valeur_hach + v.emp.y*(power t_plat a)) end
   in voiture_to_int plat.vlist (max t_plat1 t_plat2) 0 
 
-
+(*
 
 let rec construit_file_enfant (pf_parent : plateau file) (pf_enfant : plateau file) : plateau file = 
-  if (est_vide pf_parent) then pf_enfant 
+  if (est_vide pf_parent) then pf_enfant
   else let p = defile pf_parent
 
 let rec enfants_of_p (pf : plateau file) (p : plateau) (parbre : arbre) (enfantsl : plateau list):plateau list = 
@@ -207,8 +214,8 @@ let recherche_solution (p : plateau) : int list * arbre =
   let intp , t_plat = (plat_to_int p ), maximum_int t_plat1 t_plat2
   in
   
-
 *)
+
 
 (*--------------------------------------------------------------------*)
 (*----------------------- Interface Utilisateur ----------------------*)
@@ -299,7 +306,8 @@ let ()=
   let a = match l with |x::tl->x |[] -> failwith"casse les couilles" in
   (deplacer_v v Droite;
   affiche_plateau t;
-  affiche_plateau a))
+  affiche_plateau a;
+  print_int (plat_to_int t)))
 
 
 
