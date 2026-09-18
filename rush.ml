@@ -74,7 +74,7 @@ let enfile (fi:'a file) (el:'a):unit =
 let rec defile (fi:'a file): 'a =
   (*enleve le dernier element de la file et le renvoie si la file n'est pas vide*)
   match fi.entree, fi.sortie with
-    |[],[]-> failwith "votre pile est vide"
+    |[],[]-> failwith "votre file est vide"
     |entre, []-> fi.sortie <- List.rev entre ; fi.entree <- [] ; defile fi
     |_,a::b -> fi.sortie <- b ; a
 
@@ -103,7 +103,7 @@ let dupliquer_voiture (v1:voiture):voiture=
 
     
 let dupliquer_plateau (p:plateau):plateau =
-  {dim=p.dim; vlist=List.map (fun x -> dupliquer_voiture dupliquer_voiture(x)) p.vlist}
+  {dim=p.dim; vlist=List.map (fun x -> dupliquer_voiture(x)) p.vlist}
 
 
 let toucher (v1:voiture) (v2:voiture):bool =
@@ -120,10 +120,10 @@ let toucher (v1:voiture) (v2:voiture):bool =
   else if not v1.hor && not v2.hor then v2.emp.x=v1.emp.x && v1.emp.y<=(v2.emp.y+v2.taille-1) && v2.emp.y<=(v1.emp.y+v1.taille-1)
 
   (* si v1 verticale et v2 horizontale*)
-  else if not v1.hor && v2.hor then (v2.emp.x+v2.taille-1)>=v1.emp.x && v1.emp.x>=v2.emp.x && ( v2.emp.y+v2.taille-1)>=v1.emp.y && (v2.emp.y<=(v1.emp.y+v1.taille-1))
+  else if not v1.hor && v2.hor then (v2.emp.x+v2.taille-1)>=v1.emp.x && v1.emp.x>=v2.emp.x && ( v1.emp.y+v1.taille-1)>=v2.emp.y && v2.emp.y>=v1.emp.y
   
   (* si v1 horizontale et v2 verticale*)
-  else (v1.emp.x+v1.taille-1)>=v2.emp.x && v2.emp.x>=v1.emp.x && ( v1.emp.y+v1.taille-1)>=v2.emp.y && (v1.emp.y<=(v2.emp.y+v2.taille-1))
+  else (v1.emp.x+v1.taille-1)>=v2.emp.x && v2.emp.x>=v1.emp.x && ( v2.emp.y+v2.taille-1)>=v1.emp.y && v1.emp.y>=v2.emp.y
 
 let trouve_voiture (plat:plateau) (id:ide):voiture=
     (* trouve la voiture qui a l'id id dans plateau*)
@@ -146,16 +146,22 @@ let deplacer_v (voit:voiture) (d:direction):unit=
     | _ -> raise Invalid_movement 
 
 
-let collision (plat:plateau)(id:ide) (dir:direction) :bool= 
+let collision (plat:plateau) (id:ide) (dir:direction) :bool= 
   (* fonction permettant de savoir si la voiture d'identifiant id entre en collision avec une autre voiture presente sur le 
   plateau apres s'etre deplacer de dir. Cette fonction ne deplace pas la voiture en question
-  renvois true si la voiture est en contact et false sinon*)
+  renvois true si la voiture est en contact et false sinon
+  
+  Verifie egalement si la voiture v entre en collision avec un mur en effectuant le deplacement en direction dir            *)
+
   let rec collision_dev (vlist: voiture list) (v1:voiture):bool=
     match vlist with
-    | voit::queue when voit.id <> v1.id -> toucher voit v1 || collision_dev queue v1
+    | voit::queue -> if voit.id <> v1.id then toucher voit v1 || collision_dev queue v1 else collision_dev queue v1
     | _-> false (* si liste vide ou comparaison avec sois-meme*)
   
-  in let v = trouve_voiture plat id in let v1=dupliquer_voiture v in (deplacer_v v1 dir; collision_dev plat.vlist v1)
+  in 
+  let v = trouve_voiture plat id in 
+  let h,l = plat.dim in  
+  let v1 = dupliquer_voiture v in (deplacer_v v1 dir; (v1.hor && (v1.emp.x < 0 || v1.emp.x+v1.taille-1 >= h)) || ((not v1.hor) && (v1.emp.y < 0 || v1.emp.y+v1.taille-1 >= l)) || (collision_dev plat.vlist v1))
   
 
 
@@ -166,6 +172,7 @@ let collision (plat:plateau)(id:ide) (dir:direction) :bool=
 
 
 let rec power (a:int) (n:int):int =
+  (* Exponentiation rapide (a^n) *)
   if n = 0 then 1
   else let b = power a (n/2) in
   if n mod 2 = 0 then b * b
@@ -234,33 +241,44 @@ let int_to_plat(pos_init:plateau)(voit_int:int):plateau=
   plateau_from_int res voit_int 0;
   res
 
-(*
-let rec construit_file_enfant (pf_parent : plateau file) (pf_enfant : plateau file) : plateau file = 
+
+let rec aux_construit_file_enfant (pf_parent : plateau file) (tpf_p : plateau file)(pf_enfant : plateau file) : plateau file = 
   (*    Construit une file de toutes les positions atteignables legalement (en 1 mouvement)
          a partir de toutes les positions parentes fournient dans la file parent               *)
-  if (est_vide pf_parent) then pf_enfant   (* Cas de base ou pf_parent est vide*)
+  if (est_vide pf_parent) then 
+    (pf_parent.entree <- tpf_p.entree;      (*     Reconstruction     *)
+     pf_parent.sortie <- tpf_p.sortie ;     (*      de pf_parent      *)
+     pf_enfant)                        (* Cas de base ou pf_parent est vide *)
   else 
     let p = defile pf_parent in  (* Selection du prochain plateau dont on va construire les enfants *)
     let rec ajoute_file_enfants_p (vl : voiture list): unit = 
-      (* Ajoute tous les positions atteignables legalement en 1 mouvement de la position observee a la file des enfants *)
+      (* Ajoute toutes les positions atteignables legalement en 1 mouvement de la position observee a la file des enfants *)
       match vl with 
       | [] -> ()
       | v :: tvl ->(if v.hor then
-                      (if not (collision p v.id Droite) then 
-                        let p1 = dupliquer_plateau p in let v1 = trouve_voiture p1 v.id in (deplacer_v v1 Droite ; enfile pf_enfant p1 ) 
+                      (if not (collision p v.id Gauche) then 
+                        let p1 = dupliquer_plateau p in let v1 = trouve_voiture p1 v.id in (deplacer_v v1 Gauche ; enfile pf_enfant p1 )
                       else ();
-                      if not (collision p v.id Gauche) then 
-                        let p1 = dupliquer_plateau p in let v1 = trouve_voiture p1 v.id in (deplacer_v v1 Gauche ; enfile pf_enfant p1 ) 
-                      else ())
+                      if not (collision p v.id Droite) then 
+                        let p1 = dupliquer_plateau p in let v1 = trouve_voiture p1 v.id in (deplacer_v v1 Droite ; enfile pf_enfant p1 )
+                      else ();)
+
                     else
                       (if not (collision p v.id Haut) then 
-                        let p1 = dupliquer_plateau p in let v1 = trouve_voiture p1 v.id in (deplacer_v v1 Haut ; enfile pf_enfant p1 )   
+                        let p1 = dupliquer_plateau p in let v1 = trouve_voiture p1 v.id in (deplacer_v v1 Haut ; enfile pf_enfant p1 )
                       else ();
                       if not (collision p v.id Bas) then 
-                        let p1 = dupliquer_plateau p in let v1 = trouve_voiture p1 v.id in (deplacer_v v Bas ; enfile pf_enfant p1 )       
-                      else ())
-                    ;ajoute_file_enfants_p tvl)
-    in (ajoute_file_enfants_p p.vlist; construit_file_enfant pf_parent pf_enfant)
+                        let p1 = dupliquer_plateau p in let v1 = trouve_voiture p1 v.id in (deplacer_v v1 Bas ; enfile pf_enfant p1 )
+                      else ();)
+
+                    ; ajoute_file_enfants_p tvl)
+    in (ajoute_file_enfants_p p.vlist; enfile tpf_p p; aux_construit_file_enfant pf_parent tpf_p  pf_enfant)
+
+
+
+
+let rec construit_file_enfant (pf_parent : plateau file) : plateau file = 
+  aux_construit_file_enfant ( pf_parent ) (creer_file () ) (creer_file () )
 
 
 
@@ -317,20 +335,22 @@ let plateau_vers_matrice (p: plateau):ide array array =
   let rec print_ligne (n:int):unit = 
     (*Affiche une ligne de 4*n _ *)
     if n = 0 then () 
-    else (print_string "____" ; print_ligne (n-1))
+    else (print_string "_____" ; print_ligne (n-1))
   
   let print_id (i:ide):unit = 
     (*Affiche la valeur associee au type ide en entree*)
     match i with
-    | Rouge -> print_char 'R'
-    | Autre 0 -> print_char ' '
-    | Autre x -> print_int x
+    | Rouge -> print_string "R "
+    | Autre 0 -> print_string "  "
+    | Autre x -> (if x < 10 then print_char ' ' else () ; print_int x)
   
   
 
 let affiche_plateau (p1:plateau):unit = 
+  print_newline ();
   (*Affiche le plateau donne avec des cases constituees de _ et de |*)
   let p = plateau_vers_matrice p1 in
+
   let nh,nv = (Array.length p) , (Array.length (p.(0))) 
   in 
   let rec affiche_lignes_plateau (j:int) :unit = 
@@ -351,7 +371,8 @@ let affiche_plateau (p1:plateau):unit =
     in affiche_cases_plateau 0;
     print_newline ();
     affiche_lignes_plateau (j+1))
-  in affiche_lignes_plateau 0
+  in affiche_lignes_plateau 0;
+  print_newline ()
 
 
 
@@ -368,18 +389,66 @@ let affiche_plateau (p1:plateau):unit =
 
 let ()=
   
-  let t = creer_plateau 10 10 in 
-  let l = [t] in
-  let v=creer_voiture Rouge 2 true 0 0 in
-  let v2 = creer_voiture (Autre 17) 2 true 6 1 in 
-  (ajouter_voiture t v;
-  ajouter_voiture t v2; 
-  deplacer_v v Droite;
-  affiche_plateau t;
+  let t = creer_plateau 6 6 in 
+  let v = creer_voiture Rouge 2 true 3 2 in
+  let v2 = creer_voiture (Autre 3) 2 true 0 2 in 
+  let v3 = creer_voiture (Autre 5) 3 false 2 2 in
+  let v4 = creer_voiture (Autre 12) 2 false 2 0 in
+  (ajouter_voiture t v2;
+  ajouter_voiture t v3; 
+  ajouter_voiture t v;
+  ajouter_voiture t v4;
   print_newline ();
-  print_int(plat_to_int t);
+  print_string "#####################################################################################################################################";
   print_newline();
-  let f = {entree = l; sortie = []} in let f2 = construit_file_enfant f {entree = [];sortie = []} in (affiche_plateau (defile f2);affiche_plateau (defile f2);affiche_plateau (defile f2);affiche_plateau (defile f2)))
+  let f = {entree = [t]; sortie = []} in 
+  let f1 = construit_file_enfant f in 
+  let f2 = construit_file_enfant f1 in
+  let f3 = construit_file_enfant f2 in
+  (print_newline ();
+  print_newline ();
+  print_string "Gen 0";
+  print_newline ();
+  print_newline ();
+  while not (est_vide f) do
+    let plat = defile f in
+    affiche_plateau plat;
+    print_int(plat_to_int plat);
+    print_newline ()
+  done;
+  print_newline ();
+  print_newline ();
+  print_string "Gen 1";
+  print_newline ();
+  print_newline ();
+  while not (est_vide f1) do
+    let plat = defile f1 in
+    affiche_plateau plat;
+    print_int(plat_to_int plat);
+    print_newline ()
+  done;
+  print_newline ();
+  print_newline ();
+  print_string "Gen 2";
+  print_newline ();
+  print_newline ();
+  while not (est_vide f2) do
+    let plat = defile f2 in
+    affiche_plateau plat;
+    print_int(plat_to_int plat);
+    print_newline ()
+  done;
+  print_newline ();
+  print_newline ();
+  print_string "Gen 3";
+  print_newline ();
+  print_newline ();
+  while not (est_vide f3) do
+    let plat = defile f3 in
+    affiche_plateau plat;
+    print_int(plat_to_int plat);
+    print_newline ()
+  done))
 
 
 
