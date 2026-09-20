@@ -303,71 +303,78 @@ let rec construit_file_enfant (pf_parent : plateau file) : plateau file =
 
 
 let rec aux_1er_essai_rbt (pf_parent : plateau file)(af_parent : arbre file) (pf_enfant : plateau file)(af_enfant : arbre file) (gen_cour : int list) (dim_p : int) (dico : (int,int) Hashtbl.t): plateau file * arbre file = 
-  (*    Construit une file de toutes les positions atteignables legalement (en 1 mouvement)
-         a partir de toutes les positions parentes fournient dans la file parent               *)
-  if (est_vide pf_parent) then (pf_enfant,af_enfant)   (* Cas de base ou pf_parent est vide *)
+  (* Construit une file de toutes les positions atteignables legalement (en 1 mouvement) a partir de toutes les positions parentes
+    fournies dans la file parent sans repetitions de celles-ci ou de retour sur une generation precedente si il y en avait une.
+
+    !!!!!! ATTENTION !!!!!! : pf_parent et af_parent detruits (= vides) durant l'operation                                               *)
+
+
+
+  if (est_vide pf_parent) then (pf_enfant,af_enfant)   (* Cas de base ou pf_parent est vide => Renvoi des files construites *)
   else 
     let p , ap = defile pf_parent , defile af_parent in (* Selection du prochain plateau dont on va construire les enfants et de son arbre associé *)
-    let intp = plat_to_int p in
+    let intp = plat_to_int p in                         (* Equivalent en entier de p grace a la bijection plat_to_int *)
     let rec construit_enfants_p (vl : voiture list)(gen_cour : int list): int list = 
       (* Ajoute toutes les positions atteignables legalement en 1 mouvement de la position observee a la file des enfants *)
       match vl with 
-      | [] -> gen_cour
+      | [] -> gen_cour     (* Renvoi de la liste des positions crees pour l'etape suivante avec un nouveau plateau de la file parent *)
       | v :: tvl ->(begin
-                    let decalage = power dim_p (id_to_int v.id) in 
-                    let new_gen_cour = ref (gen_cour) in
+                    let decalage = power dim_p (id_to_int v.id) in (* Representation absolue sous forme d'entier des deplacements possibles de la voiture v *)
+                    let new_gen_cour = ref (gen_cour) in           (* Variable permettant l'actualisation de la liste des plateau de la generation en cours de creation *)
                     let frmoins , frplus = (List.mem (intp - decalage) !new_gen_cour) , (List.mem (intp + decalage) !new_gen_cour) in
+                    (* Verfication de la presence du plateau obtenu a l'aide d'un deplacement vers la Gauche/Haut (resp Droite/Bas) dans gen_cour
+                       Et dans ce cas, ajout de p en tant que potentiel parent de ces positions. (Utilisation de variables pour reutilisation) *)
                     (if frmoins then Hashtbl.add  dico (intp - decalage) intp;
                     if frplus then Hashtbl.add  dico (intp + decalage) intp;
+                    
                     if v.hor then 
-
+                      (* Test de deplacements en cas de deplacement horizontal de la voiture *)
                       (if not (frmoins || List.mem (intp - decalage) (Hashtbl.find_all dico intp) || collision p v.id Gauche) then 
+                        (* Interdiction de coups remontants aux "grands-parents" + Test collisions Gauche avec les autres voitures         *)
                         let p1 = dupliquer_plateau p in let v1 = trouve_voiture p1 v.id in 
-                          (deplacer_v v1 Gauche ; 
-                          print_string "G ";
-                          enfile pf_enfant p1 ; 
-                          new_gen_cour := (intp - decalage) :: !new_gen_cour ;
-                          Hashtbl.add  dico (intp - decalage) intp; 
-                          print_int (intp-decalage);
-                          print_newline ();
-                          let na = new_arbre (intp - decalage) in (enfile af_enfant na(*; ajouter_noeud na ap*)))
+                          (deplacer_v v1 Gauche ;                              (* Creation plateau enfant apres un coup car coup valide    *)
+                          enfile pf_enfant p1 ;                                (* Ajout de l'enfant a la file resultat                     *)
+                          new_gen_cour := (intp - decalage) :: !new_gen_cour ; (* Ajout plateau enfant a liste enfants generation actuelle *)
+                          Hashtbl.add  dico (intp - decalage) intp;            (* Ajout de p en tant que parent de cette position          *)
+
+                          let na = new_arbre (intp - decalage) in (enfile af_enfant na(*; ajouter_noeud na ap*))) (* Ajout du noeud associe a plateau enfant a la file af_enfant *)
 
                         else ();
 
                       if not (frplus || List.mem (intp + decalage) (Hashtbl.find_all dico intp) || collision p v.id Droite) then 
+                        (* Interdiction de coups faisant retourner en arriere + Test collisions Droite avec les autres voitures*)
                         let p1 = dupliquer_plateau p in let v1 = trouve_voiture p1 v.id in 
-                          (deplacer_v v1 Droite ; 
-                          print_string "D ";
-                          enfile pf_enfant p1 ;
-                          new_gen_cour := (intp + decalage) :: !new_gen_cour ;
-                          Hashtbl.add  dico (intp + decalage) intp; 
-                          print_int (intp+decalage);
-                          print_newline ();
-                          let na = new_arbre (intp + decalage) in (enfile af_enfant na(*; ajouter_noeud na ap*)))
+                          (deplacer_v v1 Droite ;                              (* Creation plateau enfant apres un coup car coup valide    *)
+                          enfile pf_enfant p1 ;                                (* Ajout de l'enfant a la file resultat                     *)
+                          new_gen_cour := (intp + decalage) :: !new_gen_cour ; (* Ajout plateau enfant a liste enfants generation actuelle *)
+                          Hashtbl.add  dico (intp + decalage) intp;            (* Ajout de p en tant que parent de cette position          *)
+
+                          let na = new_arbre (intp + decalage) in (enfile af_enfant na(*; ajouter_noeud na ap*))) (* Ajout du noeud associe a plateau enfant a la file af_enfant *)
 
                       else ();)
 
                     else
+
+                      (* Test de deplacements en cas de deplacement vertical de la voiture *)
                       (if not (frmoins || List.mem (intp - decalage) (Hashtbl.find_all dico intp) || collision p v.id Haut) then 
+                        (* Interdiction de coups faisant retourner en arriere + Test collisions Haut avec les autres voitures*)
                         let p1 = dupliquer_plateau p in let v1 = trouve_voiture p1 v.id in 
-                          (deplacer_v v1 Haut ; 
-                          print_string "H ";
-                          enfile pf_enfant p1 ;
-                          new_gen_cour := (intp - decalage) :: !new_gen_cour ;
-                          Hashtbl.add  dico (intp - decalage) intp; 
-                          print_int (intp-decalage);
-                          print_newline ();
-                          let na = new_arbre (intp - decalage) in (enfile af_enfant na(*; ajouter_noeud na ap*)))
+                          (deplacer_v v1 Haut ;                                (* Creation plateau enfant apres un coup car coup valide    *)
+                          enfile pf_enfant p1 ;                                (* Ajout de l'enfant a la file resultat                     *)
+                          new_gen_cour := (intp - decalage) :: !new_gen_cour ; (* Ajout plateau enfant a liste enfants generation actuelle *)
+                          Hashtbl.add  dico (intp - decalage) intp;            (* Ajout de p en tant que parent de cette position          *)
+
+                          let na = new_arbre (intp - decalage) in (enfile af_enfant na(*; ajouter_noeud na ap*))) (* Ajout du noeud associe a plateau enfant a la file af_enfant *)
 
                         else ();
 
                         if not (frplus || List.mem (intp + decalage) (Hashtbl.find_all dico intp) || collision p v.id Bas) then 
+                        (* Interdiction de coups faisant retourner en arriere + Test collisions Bas avec les autres voitures*)
                         let p1 = dupliquer_plateau p in let v1 = trouve_voiture p1 v.id in 
-                          (deplacer_v v1 Bas ; 
-                          print_string "B ";
-                          enfile pf_enfant p1 ;
-                          new_gen_cour := (intp + decalage) :: !new_gen_cour ;
-                          Hashtbl.add  dico (intp + decalage) intp; 
+                          (deplacer_v v1 Bas ;                                 (* Creation plateau enfant apres un coup car coup valide    *)
+                          enfile pf_enfant p1 ;                                (* Ajout de l'enfant a la file resultat                     *)
+                          new_gen_cour := (intp + decalage) :: !new_gen_cour ; (* Ajout plateau enfant a liste enfants generation actuelle *)
+                          Hashtbl.add  dico (intp + decalage) intp;             (* Ajout de p en tant que parent de cette position          *)
                           print_int (intp+decalage);
                           print_newline ();
                           let na = new_arbre (intp + decalage) in (enfile af_enfant na(*; ajouter_noeud na ap*)))
@@ -375,9 +382,18 @@ let rec aux_1er_essai_rbt (pf_parent : plateau file)(af_parent : arbre file) (pf
                       else ();)
 
                     ; construit_enfants_p tvl !new_gen_cour)  end)
-    in let new_gen_cour = construit_enfants_p p.vlist gen_cour in (remove_all dico intp; aux_1er_essai_rbt pf_parent af_parent pf_enfant af_enfant new_gen_cour dim_p dico)
+
+                  in let new_gen_cour = construit_enfants_p p.vlist gen_cour in (* Construction des enfants de p *)
+                  (remove_all dico intp;                      (* Liberation de l'espace de stockage du dictionnaire *) 
+                  aux_1er_essai_rbt pf_parent af_parent pf_enfant af_enfant new_gen_cour dim_p dico)  
+                  (* Nouvel appel de la fonction sur le plateau suivant de la file tout en 
+                    conservant les informations recuperes durant les precedentes iterations *)
 
 let rec _1er_essai_rbt (pf_parent : plateau file)(af_parent : arbre file) (dim_p : int) (dico : (int,int) Hashtbl.t): plateau file * arbre file = 
+  (* Construit une file de toutes les positions atteignables legalement (en 1 mouvement) a partir de toutes les positions parentes
+    fournies dans la file parent sans repetitions de celles-ci ou de retour sur une generation precedente si il y en avait une.
+
+    !!!!!! ATTENTION !!!!!! : pf_parent et af_parent detruits (= vides) durant l'operation                                               *)
 
   aux_1er_essai_rbt ( pf_parent ) ( af_parent ) (creer_file () ) (creer_file () ) ( [] ) ( dim_p ) ( dico )
 
@@ -489,116 +505,59 @@ let affiche_plateau (p1:plateau):unit =
 
 
 let ()=
+
+(****************************************************************************************************************************)
+(*                                                                                                                          *)
+  let nombre_de_generations_a_afficher = 6 in        (* Nombre de generation de plateaux a afficher (0 = position initiale) *)
+  let dim_t = 6 in                                   (* Dimension du plateau de la position initiale si celui-ci est carre  *)
+  let t = creer_plateau dim_t dim_t in               (* Position initiale vide. Remplir avec les voitures ci-apres si voulu *)
+  let v = creer_voiture Rouge 2 true 3 2 in          (* Voiture Rouge. Par defaut placee horizontale sur la deuxieme ligne  *)
+  let v2 = creer_voiture (Autre 3) 2 true 0 2 in     (*    Voiture horizontale ( taille 2 ) d'identifiant 3  ( max 18 )     *)
+  let v4 = creer_voiture (Autre 5) 2 false 2 0 in    (*    Voiture vertical    ( taille 2 ) d'identifiant 5  ( max 18 )     *)
+  let v3 = creer_voiture (Autre 12) 3 true 2 2 in    (*    Camion horizontale  ( taille 3 ) d'identifiant 12 ( max 18 )     *)
+  let v5 = creer_voiture (Autre 18) 3 false 2 0 in   (*    Camion vertical     ( taille 3 ) d'identifiant 18 ( max 18 )     *)
+(*                                                                                                                          *)
+(****************************************************************************************************************************)
+
   let dico = Hashtbl.create 10 in
-  let dim_t = 6 in
-  let t = creer_plateau dim_t dim_t in 
   let refill_file = creer_file () in
-  let v = creer_voiture Rouge 2 true 3 2 in
-  let v2 = creer_voiture (Autre 3) 2 true 0 2 in 
-  let v3 = creer_voiture (Autre 5) 3 false 2 2 in
-  let v4 = creer_voiture (Autre 12) 2 false 2 0 in
+
   (ajouter_voiture t v2;
   ajouter_voiture t v3; 
   ajouter_voiture t v;
   ajouter_voiture t v4;
+  
   let arb = Noeud (plat_to_int t,[]) in
+  
+  
   (print_newline ();
   print_string "#####################################################################################################################################";
   print_newline();
-  let f = {entree = [t]; sortie = []} in 
-  let fa = {entree = [arb]; sortie = []} in
- (print_newline ();
-  print_newline ();
-  print_string "Gen 0";
-  print_newline ();
-  print_newline ();
-  while not (est_vide f) do
-    let plat = defile f in
-    enfile refill_file plat;
-    affiche_plateau plat;
-    print_int(plat_to_int plat);
-    print_newline ()
-  done;
-  while not (est_vide refill_file) do
-    let plat = defile refill_file in
-    enfile f plat;
-  done;
+  let f = ref {entree = [t]; sortie = []} in 
+  let fa = ref {entree = [arb]; sortie = []} in
+  
+  
+  for i = 0 to nombre_de_generations_a_afficher do
+    print_newline ();
+    print_newline ();
+    print_string "Gen "; print_int i;
+    print_newline ();
+    print_newline ();
+    while not (est_vide !f) do
+      let plat = defile !f in
+      enfile refill_file plat;
+      affiche_plateau plat;
+      print_int(plat_to_int plat);
+      print_newline ()
+    done;
+    while not (est_vide refill_file) do
+      let plat = defile refill_file in
+      enfile !f plat;
+    done;
 
-  let f1,f1a = _1er_essai_rbt f fa dim_t dico in 
+    let ffa = _1er_essai_rbt !f !fa dim_t dico in match ffa with |(a,b)-> (f:=a;fa:=b)
 
-  (print_newline ();
-  print_newline ();
-  print_string "Gen 1";
-  print_newline ();
-  print_newline ();
-  while not (est_vide f1) do
-    let plat = defile f1 in
-    enfile refill_file plat;
-    affiche_plateau plat;
-    print_int(plat_to_int plat);
-    print_newline ()
-  done;
-  while not (est_vide refill_file) do
-    let plat = defile refill_file in
-    enfile f1 plat;
-  done;
-
-  let f2,f2a = _1er_essai_rbt f1 f1a dim_t dico in
-
-  (print_newline ();
-  print_newline ();
-  print_string "Gen 2";
-  print_newline ();
-  print_newline ();
-  while not (est_vide f2) do
-    let plat = defile f2 in
-    enfile refill_file plat;
-    affiche_plateau plat;
-    print_int(plat_to_int plat);
-    print_newline ()
-  done;
-  while not (est_vide refill_file) do
-    let plat = defile refill_file in
-    enfile f2 plat;
-  done;
-
-  let f3,f3a = _1er_essai_rbt f2 f2a dim_t dico in 
-
-  (print_newline ();
-  print_newline ();
-  print_string "Gen 3";
-  print_newline ();
-  print_newline ();
-  while not (est_vide f3) do
-    let plat = defile f3 in
-    enfile refill_file plat;
-    affiche_plateau plat;
-    print_int(plat_to_int plat);
-    print_newline ()
-  done;
-  while not (est_vide refill_file) do
-    let plat = defile refill_file in
-    enfile f3 plat;
-  done;
-
-  let f4,f4a = _1er_essai_rbt f3 f3a dim_t dico in 
-
-  (print_newline ();
-  print_newline ();
-  print_string "Gen 4";
-  print_newline ();
-  print_newline ();
-  while not (est_vide f4) do
-    let plat = defile f4 in
-    enfile refill_file plat;
-    affiche_plateau plat;
-    print_int(plat_to_int plat);
-    print_newline ()
-  done;
-  while not (est_vide refill_file) do
-    let plat = defile refill_file in
-    enfile f4 plat;
-  done)))))))
+  done))
 
 
 
