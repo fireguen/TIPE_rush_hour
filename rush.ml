@@ -375,8 +375,7 @@ let rec aux_1er_essai_rbt (pf_parent : plateau file)(af_parent : arbre file) (pf
                           enfile pf_enfant p1 ;                                (* Ajout de l'enfant a la file resultat                     *)
                           new_gen_cour := (intp + decalage) :: !new_gen_cour ; (* Ajout plateau enfant a liste enfants generation actuelle *)
                           Hashtbl.add  dico (intp + decalage) intp;             (* Ajout de p en tant que parent de cette position          *)
-                          print_int (intp+decalage);
-                          print_newline ();
+
                           let na = new_arbre (intp + decalage) in (enfile af_enfant na(*; ajouter_noeud na ap*)))
 
                       else ();)
@@ -508,14 +507,14 @@ let ()=
 
 (****************************************************************************************************************************)
 (*                                                                                                                          *)
-  let nombre_de_generations_a_afficher = 6 in        (* Nombre de generation de plateaux a afficher (0 = position initiale) *)
+  let nombre_de_generations_a_afficher = 10 in       (* Nombre de generation de plateaux a afficher (0 = position initiale) *)
   let dim_t = 6 in                                   (* Dimension du plateau de la position initiale si celui-ci est carre  *)
   let t = creer_plateau dim_t dim_t in               (* Position initiale vide. Remplir avec les voitures ci-apres si voulu *)
-  let v = creer_voiture Rouge 2 true 3 2 in          (* Voiture Rouge. Par defaut placee horizontale sur la deuxieme ligne  *)
+  let v = creer_voiture Rouge 2 true 4 2 in          (* Voiture Rouge. Par defaut placee horizontale sur la deuxieme ligne  *)
   let v2 = creer_voiture (Autre 3) 2 true 0 2 in     (*    Voiture horizontale ( taille 2 ) d'identifiant 3  ( max 18 )     *)
-  let v4 = creer_voiture (Autre 5) 2 false 2 0 in    (*    Voiture vertical    ( taille 2 ) d'identifiant 5  ( max 18 )     *)
-  let v3 = creer_voiture (Autre 12) 3 true 2 2 in    (*    Camion horizontale  ( taille 3 ) d'identifiant 12 ( max 18 )     *)
-  let v5 = creer_voiture (Autre 18) 3 false 2 0 in   (*    Camion vertical     ( taille 3 ) d'identifiant 18 ( max 18 )     *)
+  let v3 = creer_voiture (Autre 5) 2 false 2 0 in    (*    Voiture vertical    ( taille 2 ) d'identifiant 5  ( max 18 )     *)
+  let v4 = creer_voiture (Autre 12) 3 true 3 3 in    (*    Camion horizontale  ( taille 3 ) d'identifiant 12 ( max 18 )     *)
+  let v5 = creer_voiture (Autre 18) 3 false 3 0 in   (*    Camion vertical     ( taille 3 ) d'identifiant 18 ( max 18 )     *)
 (*                                                                                                                          *)
 (****************************************************************************************************************************)
 
@@ -526,6 +525,7 @@ let ()=
   ajouter_voiture t v3; 
   ajouter_voiture t v;
   ajouter_voiture t v4;
+  ajouter_voiture t v5;
   
   let arb = Noeud (plat_to_int t,[]) in
   
