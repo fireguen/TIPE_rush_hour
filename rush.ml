@@ -28,6 +28,8 @@ type 'a file = { mutable entree:'a list; mutable sortie:'a list}
 
 exception Invalid_movement
 
+exception Trouve of arbre
+
 (*-----------------------------------------------------------------*)
 (*----------------------------- Arbre -----------------------------*)
 (*-----------------------------------------------------------------*)
@@ -44,15 +46,19 @@ let ajouter_noeud (nouveau:arbre) (arb:arbre):arbre=
 let find_fils (valeur:int) (arb:arbre):arbre=
   (* recherche le noeud des fils directes de arb s'il est present*)
 
-  let rec enleve_list (valeur:int) (liste:arbre list):arbre=
+  let rec enleve_list (valeur:int) (liste:arbre list):unit=
     (*trouve le noeud de la liste liste s'il est present failwith sinon*)
     match liste with
-      |[]-> failwith "l'element n'est pas present parmis les fils directes"
-      |(Noeud (info, fils))::reste-> if info=valeur then Noeud(info, fils) else enleve_list valeur reste
+      |[]-> ()
+      |(Noeud (info, fils))::reste-> if info=valeur then raise (Trouve (Noeud(info, fils))) else enleve_list valeur reste
   
   in
   match arb with
-  | Noeud(valeur, fils) -> enleve_list valeur fils
+  | Noeud(v, fils) -> if v=valeur then arb 
+                      else begin 
+                        try enleve_list valeur fils ; failwith "l'element n'est pas present parmis les fils directes" 
+                        with | Trouve a -> a
+                      end
 
   
 (*-----------------------------------------------------------------*)
@@ -77,6 +83,9 @@ let rec defile (fi:'a file): 'a =
     |[],[]-> failwith "votre file est vide"
     |entre, []-> fi.sortie <- List.rev entre ; fi.entree <- [] ; defile fi
     |_,a::b -> fi.sortie <- b ; a
+
+
+let file_mem (a:'a) (fi:'a file):bool = List.mem a fi.entree || List.mem a fi.sortie
 
 
 (*-----------------------------------------------------------------*)
@@ -170,6 +179,12 @@ let collision (plat:plateau) (id:ide) (dir:direction) :bool=
 (*------------------------------ Robot  ------------------------------*)
 (*--------------------------------------------------------------------*)
 
+let rec remove_all tbl key =
+  (* Vide entierement une case du dico tbl *)
+  if Hashtbl.mem tbl key then (
+    Hashtbl.remove tbl key;
+    remove_all tbl key
+  )   
 
 let rec power (a:int) (n:int):int =
   (* Exponentiation rapide (a^n) *)
@@ -178,6 +193,11 @@ let rec power (a:int) (n:int):int =
   if n mod 2 = 0 then b * b
   else a * b * b
 
+
+let id_to_int (id : ide): int =
+  match id with
+  | Rouge -> 0
+  | Autre a -> a
 
     
 let plat_to_int (plat:plateau):int = 
@@ -188,15 +208,11 @@ let plat_to_int (plat:plateau):int =
   let rec voiture_to_int (v_list : voiture list) (t_plat : int) (valeur_hach : int) : int =
     match v_list with
     | [] -> valeur_hach
-    | v :: reste -> begin match v.id with
-                                                  (* si voiture rouge horizontale -> ajoute <position en x> *)
-                        |Rouge -> if (v.hor) then voiture_to_int reste t_plat (valeur_hach + v.emp.x) 
-                                                  (* si voiture rouge horizontale -> ajoute <position en y> *)
-                                                     else voiture_to_int reste t_plat (valeur_hach + v.emp.y)
-                                                  (* si voiture (Autre a) horizontale -> ajoute <position en x>*(taille_plateau)^a *)
-                        |Autre a -> if (v.hor) then voiture_to_int reste t_plat (valeur_hach + v.emp.x*(power t_plat a))
-                                                  (* si voiture (Autre a) horizontale -> ajoute <position en y>*(taille_plateau)^a *)
-                                                     else voiture_to_int reste t_plat (valeur_hach + v.emp.y*(power t_plat a)) end
+    | v :: reste -> (* si voiture v horizontale -> ajoute <position en x>*(taille_plateau)^a ou a = 0 si Rouge *)
+                        let a = id_to_int v.id in 
+                        if (v.hor) then voiture_to_int reste t_plat (valeur_hach + v.emp.x*(power t_plat a))
+                    (* si voiture v verticale -> ajoute <position en y>*(taille_plateau)^a ou a = 0 si Rouge *)
+                        else voiture_to_int reste t_plat (valeur_hach + v.emp.y*(power t_plat a))
   in voiture_to_int plat.vlist (max t_plat1 t_plat2) 0 
 
 let recupere_int(taille:int)(voit_int):int*int=
@@ -283,9 +299,94 @@ let rec construit_file_enfant (pf_parent : plateau file) : plateau file =
 
 
 
+
+
+
+let rec aux_1er_essai_rbt (pf_parent : plateau file)(af_parent : arbre file) (pf_enfant : plateau file)(af_enfant : arbre file) (gen_cour : int list) (dim_p : int) (dico : (int,int) Hashtbl.t): plateau file * arbre file = 
+  (*    Construit une file de toutes les positions atteignables legalement (en 1 mouvement)
+         a partir de toutes les positions parentes fournient dans la file parent               *)
+  if (est_vide pf_parent) then (pf_enfant,af_enfant)   (* Cas de base ou pf_parent est vide *)
+  else 
+    let p , ap = defile pf_parent , defile af_parent in (* Selection du prochain plateau dont on va construire les enfants et de son arbre associé *)
+    let intp = plat_to_int p in
+    let rec construit_enfants_p (vl : voiture list)(gen_cour : int list): int list = 
+      (* Ajoute toutes les positions atteignables legalement en 1 mouvement de la position observee a la file des enfants *)
+      match vl with 
+      | [] -> gen_cour
+      | v :: tvl ->(begin
+                    let decalage = power dim_p (id_to_int v.id) in 
+                    let new_gen_cour = ref (gen_cour) in
+                    let frmoins , frplus = (List.mem (intp - decalage) !new_gen_cour) , (List.mem (intp + decalage) !new_gen_cour) in
+                    (if frmoins then Hashtbl.add  dico (intp - decalage) intp;
+                    if frplus then Hashtbl.add  dico (intp + decalage) intp;
+                    if v.hor then 
+
+                      (if not (frmoins || List.mem (intp - decalage) (Hashtbl.find_all dico intp) || collision p v.id Gauche) then 
+                        let p1 = dupliquer_plateau p in let v1 = trouve_voiture p1 v.id in 
+                          (deplacer_v v1 Gauche ; 
+                          print_string "G ";
+                          enfile pf_enfant p1 ; 
+                          new_gen_cour := (intp - decalage) :: !new_gen_cour ;
+                          Hashtbl.add  dico (intp - decalage) intp; 
+                          print_int (intp-decalage);
+                          print_newline ();
+                          let na = new_arbre (intp - decalage) in (enfile af_enfant na(*; ajouter_noeud na ap*)))
+
+                        else ();
+
+                      if not (frplus || List.mem (intp + decalage) (Hashtbl.find_all dico intp) || collision p v.id Droite) then 
+                        let p1 = dupliquer_plateau p in let v1 = trouve_voiture p1 v.id in 
+                          (deplacer_v v1 Droite ; 
+                          print_string "D ";
+                          enfile pf_enfant p1 ;
+                          new_gen_cour := (intp + decalage) :: !new_gen_cour ;
+                          Hashtbl.add  dico (intp + decalage) intp; 
+                          print_int (intp+decalage);
+                          print_newline ();
+                          let na = new_arbre (intp + decalage) in (enfile af_enfant na(*; ajouter_noeud na ap*)))
+
+                      else ();)
+
+                    else
+                      (if not (frmoins || List.mem (intp - decalage) (Hashtbl.find_all dico intp) || collision p v.id Haut) then 
+                        let p1 = dupliquer_plateau p in let v1 = trouve_voiture p1 v.id in 
+                          (deplacer_v v1 Haut ; 
+                          print_string "H ";
+                          enfile pf_enfant p1 ;
+                          new_gen_cour := (intp - decalage) :: !new_gen_cour ;
+                          Hashtbl.add  dico (intp - decalage) intp; 
+                          print_int (intp-decalage);
+                          print_newline ();
+                          let na = new_arbre (intp - decalage) in (enfile af_enfant na(*; ajouter_noeud na ap*)))
+
+                        else ();
+
+                        if not (frplus || List.mem (intp + decalage) (Hashtbl.find_all dico intp) || collision p v.id Bas) then 
+                        let p1 = dupliquer_plateau p in let v1 = trouve_voiture p1 v.id in 
+                          (deplacer_v v1 Bas ; 
+                          print_string "B ";
+                          enfile pf_enfant p1 ;
+                          new_gen_cour := (intp + decalage) :: !new_gen_cour ;
+                          Hashtbl.add  dico (intp + decalage) intp; 
+                          print_int (intp+decalage);
+                          print_newline ();
+                          let na = new_arbre (intp + decalage) in (enfile af_enfant na(*; ajouter_noeud na ap*)))
+
+                      else ();)
+
+                    ; construit_enfants_p tvl !new_gen_cour)  end)
+    in let new_gen_cour = construit_enfants_p p.vlist gen_cour in (remove_all dico intp; aux_1er_essai_rbt pf_parent af_parent pf_enfant af_enfant new_gen_cour dim_p dico)
+
+let rec _1er_essai_rbt (pf_parent : plateau file)(af_parent : arbre file) (dim_p : int) (dico : (int,int) Hashtbl.t): plateau file * arbre file = 
+
+  aux_1er_essai_rbt ( pf_parent ) ( af_parent ) (creer_file () ) (creer_file () ) ( [] ) ( dim_p ) ( dico )
+
+
+
+
 (*
 
-let rec enfants_of_p (pf : plateau file) (p : plateau) (parbre : arbre) (enfantsl : plateau list):plateau list = 
+let rec enfants_of_p (pf : plateau file) (p : plateau) (parbre : arbre) (enfantsl : int file): int file = 
     match p.vlist with
     | [] -> enfantsl
     | v::tvl -> let idv = match v.ide with |Rouge -> 0 |Autre x -> x in
@@ -388,8 +489,10 @@ let affiche_plateau (p1:plateau):unit =
 
 
 let ()=
-  
-  let t = creer_plateau 6 6 in 
+  let dico = Hashtbl.create 10 in
+  let dim_t = 6 in
+  let t = creer_plateau dim_t dim_t in 
+  let refill_file = creer_file () in
   let v = creer_voiture Rouge 2 true 3 2 in
   let v2 = creer_voiture (Autre 3) 2 true 0 2 in 
   let v3 = creer_voiture (Autre 5) 3 false 2 2 in
@@ -398,57 +501,104 @@ let ()=
   ajouter_voiture t v3; 
   ajouter_voiture t v;
   ajouter_voiture t v4;
-  print_newline ();
+  let arb = Noeud (plat_to_int t,[]) in
+  (print_newline ();
   print_string "#####################################################################################################################################";
   print_newline();
   let f = {entree = [t]; sortie = []} in 
-  let f1 = construit_file_enfant f in 
-  let f2 = construit_file_enfant f1 in
-  let f3 = construit_file_enfant f2 in
-  (print_newline ();
+  let fa = {entree = [arb]; sortie = []} in
+ (print_newline ();
   print_newline ();
   print_string "Gen 0";
   print_newline ();
   print_newline ();
   while not (est_vide f) do
     let plat = defile f in
+    enfile refill_file plat;
     affiche_plateau plat;
     print_int(plat_to_int plat);
     print_newline ()
   done;
-  print_newline ();
+  while not (est_vide refill_file) do
+    let plat = defile refill_file in
+    enfile f plat;
+  done;
+
+  let f1,f1a = _1er_essai_rbt f fa dim_t dico in 
+
+  (print_newline ();
   print_newline ();
   print_string "Gen 1";
   print_newline ();
   print_newline ();
   while not (est_vide f1) do
     let plat = defile f1 in
+    enfile refill_file plat;
     affiche_plateau plat;
     print_int(plat_to_int plat);
     print_newline ()
   done;
-  print_newline ();
+  while not (est_vide refill_file) do
+    let plat = defile refill_file in
+    enfile f1 plat;
+  done;
+
+  let f2,f2a = _1er_essai_rbt f1 f1a dim_t dico in
+
+  (print_newline ();
   print_newline ();
   print_string "Gen 2";
   print_newline ();
   print_newline ();
   while not (est_vide f2) do
     let plat = defile f2 in
+    enfile refill_file plat;
     affiche_plateau plat;
     print_int(plat_to_int plat);
     print_newline ()
   done;
-  print_newline ();
+  while not (est_vide refill_file) do
+    let plat = defile refill_file in
+    enfile f2 plat;
+  done;
+
+  let f3,f3a = _1er_essai_rbt f2 f2a dim_t dico in 
+
+  (print_newline ();
   print_newline ();
   print_string "Gen 3";
   print_newline ();
   print_newline ();
   while not (est_vide f3) do
     let plat = defile f3 in
+    enfile refill_file plat;
     affiche_plateau plat;
     print_int(plat_to_int plat);
     print_newline ()
-  done))
+  done;
+  while not (est_vide refill_file) do
+    let plat = defile refill_file in
+    enfile f3 plat;
+  done;
+
+  let f4,f4a = _1er_essai_rbt f3 f3a dim_t dico in 
+
+  (print_newline ();
+  print_newline ();
+  print_string "Gen 4";
+  print_newline ();
+  print_newline ();
+  while not (est_vide f4) do
+    let plat = defile f4 in
+    enfile refill_file plat;
+    affiche_plateau plat;
+    print_int(plat_to_int plat);
+    print_newline ()
+  done;
+  while not (est_vide refill_file) do
+    let plat = defile refill_file in
+    enfile f4 plat;
+  done)))))))
 
 
 
