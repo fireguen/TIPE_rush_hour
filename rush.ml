@@ -199,7 +199,12 @@ let id_to_int (id : ide): int =
   | Rouge -> 0
   | Autre a -> a
 
-    
+let int_to_id(vale:int):ide=
+  (*rouge si vale =0, (Autre vale) sinon*)
+  if vale=0 then Rouge
+  else (Autre vale)
+
+
 let plat_to_int (plat:plateau):int = 
   (* permet de transformer plat en un entier en fonction du nombre de voitures, de leurs positions et de la taille de plat.
   Chaque entier asssocié à une configuration de plateau ayant un nombre de voiture fixée est unique *)
@@ -221,10 +226,6 @@ let recupere_int(taille:int)(voit_int):int*int=
   let rest_voit_int = (voit_int-res)/taille in
   (rest_voit_int,res)
 
-let int_to_id(vale:int):ide=
-  (*rouge si vale =0, (Autre vale) sinon*)
-  if vale=0 then Rouge
-  else (Autre vale)
 
 let teleporte_voiture (voit:voiture)(pos:int):unit=
   if voit.hor then
@@ -339,7 +340,7 @@ let rec aux_1er_essai_rbt (pf_parent : plateau file)(af_parent : arbre file) (pf
 
                           let na = new_arbre (intp - decalage) in (enfile af_enfant na(*; ajouter_noeud na ap*))) (* Ajout du noeud associe a plateau enfant a la file af_enfant *)
 
-                        else ();
+                      else ();
 
                       if not (frplus || List.mem (intp + decalage) (Hashtbl.find_all dico intp) || collision p v.id Droite) then 
                         (* Interdiction de coups faisant retourner en arriere + Test collisions Droite avec les autres voitures*)
@@ -382,13 +383,13 @@ let rec aux_1er_essai_rbt (pf_parent : plateau file)(af_parent : arbre file) (pf
 
                     ; construit_enfants_p tvl !new_gen_cour)  end)
 
-                  in let new_gen_cour = construit_enfants_p p.vlist gen_cour in (* Construction des enfants de p *)
-                  (remove_all dico intp;                      (* Liberation de l'espace de stockage du dictionnaire *) 
-                  aux_1er_essai_rbt pf_parent af_parent pf_enfant af_enfant new_gen_cour dim_p dico)  
-                  (* Nouvel appel de la fonction sur le plateau suivant de la file tout en 
-                    conservant les informations recuperes durant les precedentes iterations *)
+    in let new_gen_cour = construit_enfants_p p.vlist gen_cour in (* Construction des enfants de p *)
+      (remove_all dico intp;                      (* Liberation de l'espace de stockage du dictionnaire *) 
+      aux_1er_essai_rbt pf_parent af_parent pf_enfant af_enfant new_gen_cour dim_p dico)  
+      (* Nouvel appel de la fonction sur le plateau suivant de la file tout en 
+        conservant les informations recuperes durant les precedentes iterations *)
 
-let rec _1er_essai_rbt (pf_parent : plateau file)(af_parent : arbre file) (dim_p : int) (dico : (int,int) Hashtbl.t): plateau file * arbre file = 
+let _1er_essai_rbt (pf_parent : plateau file)(af_parent : arbre file) (dim_p : int) (dico : (int,int) Hashtbl.t): plateau file * arbre file = 
   (* Construit une file de toutes les positions atteignables legalement (en 1 mouvement) a partir de toutes les positions parentes
     fournies dans la file parent sans repetitions de celles-ci ou de retour sur une generation precedente si il y en avait une.
 
