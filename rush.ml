@@ -30,6 +30,10 @@ exception Invalid_movement
 
 exception Trouve of arbre
 
+exception Found
+
+exception Fin of string 
+
 (*-----------------------------------------------------------------*)
 (*----------------------------- Arbre -----------------------------*)
 (*-----------------------------------------------------------------*)
@@ -155,6 +159,14 @@ let deplacer_v (voit:voiture) (d:direction):unit=
     | _ -> raise Invalid_movement 
 
 
+let rec collision_dev (vlist: voiture list) (v1:voiture):bool=
+  match vlist with
+  | voit::queue -> if voit.id <> v1.id then toucher voit v1 || collision_dev queue v1 else collision_dev queue v1
+  | _-> false (* si liste vide ou comparaison avec sois-meme*)
+  
+
+ 
+
 let collision (plat:plateau) (id:ide) (dir:direction) :bool= 
   (* fonction permettant de savoir si la voiture d'identifiant id entre en collision avec une autre voiture presente sur le 
   plateau apres s'etre deplacer de dir. Cette fonction ne deplace pas la voiture en question
@@ -162,13 +174,7 @@ let collision (plat:plateau) (id:ide) (dir:direction) :bool=
   
   Verifie egalement si la voiture v entre en collision avec un mur en effectuant le deplacement en direction dir            *)
 
-  let rec collision_dev (vlist: voiture list) (v1:voiture):bool=
-    match vlist with
-    | voit::queue -> if voit.id <> v1.id then toucher voit v1 || collision_dev queue v1 else collision_dev queue v1
-    | _-> false (* si liste vide ou comparaison avec sois-meme*)
-  
-  in 
-  let v = trouve_voiture plat id in 
+ let v = trouve_voiture plat id in 
   let h,l = plat.dim in  
   let v1 = dupliquer_voiture v in (deplacer_v v1 dir; (v1.hor && (v1.emp.x < 0 || v1.emp.x+v1.taille-1 >= h)) || ((not v1.hor) && (v1.emp.y < 0 || v1.emp.y+v1.taille-1 >= l)) || (collision_dev plat.vlist v1))
   
@@ -178,6 +184,8 @@ let collision (plat:plateau) (id:ide) (dir:direction) :bool=
 (*--------------------------------------------------------------------*)
 (*------------------------------ Robot  ------------------------------*)
 (*--------------------------------------------------------------------*)
+
+
 
 let rec remove_all tbl key =
   (* Vide entierement une case du dico tbl *)
@@ -303,7 +311,7 @@ let rec construit_file_enfant (pf_parent : plateau file) : plateau file =
 
 
 
-let rec aux_1er_essai_rbt (pf_parent : plateau file)(af_parent : arbre file) (pf_enfant : plateau file)(af_enfant : arbre file) (gen_cour : int list) (dim_p : int) (dico : (int,int) Hashtbl.t): plateau file * arbre file = 
+let rec aux_1er_essai_rbt (pf_parent : plateau file)(af_parent : arbre file) (pf_enfant : plateau file)(af_enfant : arbre file) (gen_cour : (plateau,int) Hashtbl.t ) (dim_p : int) (dico : (int,int) Hashtbl.t): plateau file * arbre file = 
   (* Construit une file de toutes les positions atteignables legalement (en 1 mouvement) a partir de toutes les positions parentes
     fournies dans la file parent sans repetitions de celles-ci ou de retour sur une generation precedente si il y en avait une.
 
@@ -314,40 +322,40 @@ let rec aux_1er_essai_rbt (pf_parent : plateau file)(af_parent : arbre file) (pf
   if (est_vide pf_parent) then (pf_enfant,af_enfant)   (* Cas de base ou pf_parent est vide => Renvoi des files construites *)
   else 
     let p , ap = defile pf_parent , defile af_parent in (* Selection du prochain plateau dont on va construire les enfants et de son arbre associé *)
+    if Hashtbl.mem gen_cour p then aux_1er_essai_rbt pf_parent af_parent pf_enfant af_enfant gen_cour dim_p dico
+    else
     let intp = plat_to_int p in                         (* Equivalent en entier de p grace a la bijection plat_to_int *)
-    let rec construit_enfants_p (vl : voiture list)(gen_cour : int list): int list = 
+    let rec construit_enfants_p (vl : voiture list)(gen_cour : (plateau,int) Hashtbl.t): unit = 
       (* Ajoute toutes les positions atteignables legalement en 1 mouvement de la position observee a la file des enfants *)
       match vl with 
-      | [] -> gen_cour     (* Renvoi de la liste des positions crees pour l'etape suivante avec un nouveau plateau de la file parent *)
+      | [] -> ()    (* Renvoi de la liste des positions crees pour l'etape suivante avec un nouveau plateau de la file parent *)
       | v :: tvl ->(begin
                     let decalage = power dim_p (id_to_int v.id) in (* Representation absolue sous forme d'entier des deplacements possibles de la voiture v *)
-                    let new_gen_cour = ref (gen_cour) in           (* Variable permettant l'actualisation de la liste des plateau de la generation en cours de creation *)
-                    let frmoins , frplus = (List.mem (intp - decalage) !new_gen_cour) , (List.mem (intp + decalage) !new_gen_cour) in
+                    (* Variable permettant l'actualisation de la liste des plateau de la generation en cours de creation *)
+
                     (* Verfication de la presence du plateau obtenu a l'aide d'un deplacement vers la Gauche/Haut (resp Droite/Bas) dans gen_cour
                        Et dans ce cas, ajout de p en tant que potentiel parent de ces positions. (Utilisation de variables pour reutilisation) *)
-                    (if frmoins then Hashtbl.add  dico (intp - decalage) intp;
-                    if frplus then Hashtbl.add  dico (intp + decalage) intp;
                     
-                    if v.hor then 
+                    (if v.hor then 
                       (* Test de deplacements en cas de deplacement horizontal de la voiture *)
-                      (if not (frmoins || List.mem (intp - decalage) (Hashtbl.find_all dico intp) || collision p v.id Gauche) then 
+                      (if not (List.mem (intp - decalage) (Hashtbl.find_all dico intp) || collision p v.id Gauche) then 
                         (* Interdiction de coups remontants aux "grands-parents" + Test collisions Gauche avec les autres voitures         *)
                         let p1 = dupliquer_plateau p in let v1 = trouve_voiture p1 v.id in 
                           (deplacer_v v1 Gauche ;                              (* Creation plateau enfant apres un coup car coup valide    *)
                           enfile pf_enfant p1 ;                                (* Ajout de l'enfant a la file resultat                     *)
-                          new_gen_cour := (intp - decalage) :: !new_gen_cour ; (* Ajout plateau enfant a liste enfants generation actuelle *)
+                           (* Ajout plateau enfant a liste enfants generation actuelle *)
                           Hashtbl.add  dico (intp - decalage) intp;            (* Ajout de p en tant que parent de cette position          *)
 
                           let na = new_arbre (intp - decalage) in (enfile af_enfant na(*; ajouter_noeud na ap*))) (* Ajout du noeud associe a plateau enfant a la file af_enfant *)
 
                       else ();
 
-                      if not (frplus || List.mem (intp + decalage) (Hashtbl.find_all dico intp) || collision p v.id Droite) then 
-                        (* Interdiction de coups faisant retourner en arriere + Test collisions Droite avec les autres voitures*)
+                      if not (List.mem (intp + decalage) (Hashtbl.find_all dico intp) || collision p v.id Droite) then 
+                        (* Interdiction de coups remontants aux "grands-parents" + Test collisions Droite avec les autres voitures*)
                         let p1 = dupliquer_plateau p in let v1 = trouve_voiture p1 v.id in 
                           (deplacer_v v1 Droite ;                              (* Creation plateau enfant apres un coup car coup valide    *)
                           enfile pf_enfant p1 ;                                (* Ajout de l'enfant a la file resultat                     *)
-                          new_gen_cour := (intp + decalage) :: !new_gen_cour ; (* Ajout plateau enfant a liste enfants generation actuelle *)
+                          (* Ajout plateau enfant a liste enfants generation actuelle *)
                           Hashtbl.add  dico (intp + decalage) intp;            (* Ajout de p en tant que parent de cette position          *)
 
                           let na = new_arbre (intp + decalage) in (enfile af_enfant na(*; ajouter_noeud na ap*))) (* Ajout du noeud associe a plateau enfant a la file af_enfant *)
@@ -357,45 +365,46 @@ let rec aux_1er_essai_rbt (pf_parent : plateau file)(af_parent : arbre file) (pf
                     else
 
                       (* Test de deplacements en cas de deplacement vertical de la voiture *)
-                      (if not (frmoins || List.mem (intp - decalage) (Hashtbl.find_all dico intp) || collision p v.id Haut) then 
-                        (* Interdiction de coups faisant retourner en arriere + Test collisions Haut avec les autres voitures*)
+                      (if not (List.mem (intp - decalage) (Hashtbl.find_all dico intp) || collision p v.id Haut) then 
+                        (* Interdiction de coups remontants aux "grands-parents" + Test collisions Haut avec les autres voitures*)
                         let p1 = dupliquer_plateau p in let v1 = trouve_voiture p1 v.id in 
                           (deplacer_v v1 Haut ;                                (* Creation plateau enfant apres un coup car coup valide    *)
                           enfile pf_enfant p1 ;                                (* Ajout de l'enfant a la file resultat                     *)
-                          new_gen_cour := (intp - decalage) :: !new_gen_cour ; (* Ajout plateau enfant a liste enfants generation actuelle *)
+                          (* Ajout plateau enfant a liste enfants generation actuelle *)
                           Hashtbl.add  dico (intp - decalage) intp;            (* Ajout de p en tant que parent de cette position          *)
 
                           let na = new_arbre (intp - decalage) in (enfile af_enfant na(*; ajouter_noeud na ap*))) (* Ajout du noeud associe a plateau enfant a la file af_enfant *)
 
                         else ();
 
-                        if not (frplus || List.mem (intp + decalage) (Hashtbl.find_all dico intp) || collision p v.id Bas) then 
-                        (* Interdiction de coups faisant retourner en arriere + Test collisions Bas avec les autres voitures*)
+                        if not (List.mem (intp + decalage) (Hashtbl.find_all dico intp) || collision p v.id Bas) then 
+                        (* Interdiction de coups remontants aux "grands-parents" + Test collisions Bas avec les autres voitures*)
                         let p1 = dupliquer_plateau p in let v1 = trouve_voiture p1 v.id in 
                           (deplacer_v v1 Bas ;                                 (* Creation plateau enfant apres un coup car coup valide    *)
                           enfile pf_enfant p1 ;                                (* Ajout de l'enfant a la file resultat                     *)
-                          new_gen_cour := (intp + decalage) :: !new_gen_cour ; (* Ajout plateau enfant a liste enfants generation actuelle *)
-                          Hashtbl.add  dico (intp + decalage) intp;             (* Ajout de p en tant que parent de cette position          *)
+                          (* Ajout plateau enfant a liste enfants generation actuelle *)
+                          Hashtbl.add  dico (intp + decalage) intp;            (* Ajout de p en tant que parent de cette position          *)
 
                           let na = new_arbre (intp + decalage) in (enfile af_enfant na(*; ajouter_noeud na ap*)))
 
                       else ();)
 
-                    ; construit_enfants_p tvl !new_gen_cour)  end)
+                    ; construit_enfants_p tvl gen_cour)  end)
 
-    in let new_gen_cour = construit_enfants_p p.vlist gen_cour in (* Construction des enfants de p *)
-      (remove_all dico intp;                      (* Liberation de l'espace de stockage du dictionnaire *) 
-      aux_1er_essai_rbt pf_parent af_parent pf_enfant af_enfant new_gen_cour dim_p dico)  
+    in (Hashtbl.add gen_cour p intp;
+      construit_enfants_p p.vlist gen_cour;      (* Construction des enfants de p *)
+      remove_all dico intp;                      (* Liberation de l'espace de stockage du dictionnaire *) 
+      aux_1er_essai_rbt pf_parent af_parent pf_enfant af_enfant gen_cour dim_p dico)  
       (* Nouvel appel de la fonction sur le plateau suivant de la file tout en 
         conservant les informations recuperes durant les precedentes iterations *)
 
-let _1er_essai_rbt (pf_parent : plateau file)(af_parent : arbre file) (dim_p : int) (dico : (int,int) Hashtbl.t): plateau file * arbre file = 
+let _1er_essai_rbt (pf_parent : plateau file)(af_parent : arbre file) (dim_p : int) (gen_cour : (plateau,int) Hashtbl.t) (dico : (int,int) Hashtbl.t): plateau file * arbre file = 
   (* Construit une file de toutes les positions atteignables legalement (en 1 mouvement) a partir de toutes les positions parentes
     fournies dans la file parent sans repetitions de celles-ci ou de retour sur une generation precedente si il y en avait une.
 
     !!!!!! ATTENTION !!!!!! : pf_parent et af_parent detruits (= vides) durant l'operation                                               *)
 
-  aux_1er_essai_rbt ( pf_parent ) ( af_parent ) (creer_file () ) (creer_file () ) ( [] ) ( dim_p ) ( dico )
+  aux_1er_essai_rbt ( pf_parent ) ( af_parent ) ( creer_file () ) ( creer_file () ) ( gen_cour ) ( dim_p ) ( dico )
 
 
 
@@ -499,7 +508,21 @@ let affiche_plateau (p1:plateau):unit =
 
 
 
-
+let solution_dans_tab_hach (dico : (plateau,int) Hashtbl.t) (p_dim : int) (rouge : voiture) (gen : int): bool = 
+  try 
+    Hashtbl.iter (fun x y -> if (y mod p_dim = p_dim - rouge.taille ) 
+                  then (print_newline ();
+                        print_ligne 10;
+                        print_string "Solution Finale";
+                        print_ligne 10;
+                        print_newline();
+                        print_string "Fin a la generation : ";
+                        print_int gen;
+                        print_newline ();
+                        affiche_plateau ( x);
+                        raise Found)) dico 
+    ; false
+  with |Found -> true
 
 
 
@@ -508,26 +531,43 @@ let ()=
 
 (****************************************************************************************************************************)
 (*                                                                                                                          *)
-  let nombre_de_generations_a_afficher = 10 in       (* Nombre de generation de plateaux a afficher (0 = position initiale) *)
-  let dim_t = 6 in                                   (* Dimension du plateau de la position initiale si celui-ci est carre  *)
+  let nombre_de_generations_a_afficher = 100 in       (* Nombre de generation de plateaux a afficher (0 = position initiale) *)
+  let dim_t = 7 in                                   (* Dimension du plateau de la position initiale si celui-ci est carre  *)
   let t = creer_plateau dim_t dim_t in               (* Position initiale vide. Remplir avec les voitures ci-apres si voulu *)
-  let v = creer_voiture Rouge 2 true 4 2 in          (* Voiture Rouge. Par defaut placee horizontale sur la deuxieme ligne  *)
-  let v2 = creer_voiture (Autre 3) 2 true 0 2 in     (*    Voiture horizontale ( taille 2 ) d'identifiant 3  ( max 18 )     *)
+  let vRouge = creer_voiture Rouge 2 true 0 2 in          (* Voiture Rouge. Par defaut placee horizontale sur la deuxieme ligne  *)
+  let v2 = creer_voiture (Autre 3) 2 true 0 5 in     (*    Voiture horizontale ( taille 2 ) d'identifiant 3  ( max 18 )     *)
   let v3 = creer_voiture (Autre 5) 2 false 2 0 in    (*    Voiture vertical    ( taille 2 ) d'identifiant 5  ( max 18 )     *)
   let v4 = creer_voiture (Autre 12) 3 true 3 3 in    (*    Camion horizontale  ( taille 3 ) d'identifiant 12 ( max 18 )     *)
   let v5 = creer_voiture (Autre 18) 3 false 3 0 in   (*    Camion vertical     ( taille 3 ) d'identifiant 18 ( max 18 )     *)
 (*                                                                                                                          *)
 (****************************************************************************************************************************)
 
+  Random.init;
+
   let dico = Hashtbl.create 10 in
+  let gen_cour = Hashtbl.create 100 in
   let refill_file = creer_file () in
 
-  (ajouter_voiture t v2;
+  (ajouter_voiture t vRouge;
+  (*ajouter_voiture t v2;
   ajouter_voiture t v3; 
-  ajouter_voiture t v;
   ajouter_voiture t v4;
-  ajouter_voiture t v5;
+  ajouter_voiture t v5;*)
   
+  let i , j = ref 2 , ref 0 in
+  while !i < 12 && !j < 100 do 
+    let taille = (Random.int 2) + 2 in
+    let hor = !i >= Random.int (2*(!i)) in 
+    let ordonnee = Random.int (dim_t) in
+    let vrand = 
+    if hor then 
+      (if ordonnee = 2 then creer_voiture (Autre !i) ( taille ) ( hor ) (Random.int (dim_t - taille + 1)) (ordonnee + 1)
+      else creer_voiture (Autre !i) ( taille ) ( hor ) (Random.int (dim_t - taille + 1)) (ordonnee))
+    else creer_voiture (Autre !i) ( taille ) ( hor ) (ordonnee) (Random.int (dim_t - taille + 1))
+    in if not (collision_dev t.vlist vrand ) then (incr i ;ajouter_voiture t vrand) else (incr j)
+  done;
+
+
   let arb = Noeud (plat_to_int t,[]) in
   
   
@@ -537,9 +577,10 @@ let ()=
   let f = ref {entree = [t]; sortie = []} in 
   let fa = ref {entree = [arb]; sortie = []} in
   
+  affiche_plateau t;
   
   for i = 0 to nombre_de_generations_a_afficher do
-    print_newline ();
+    (*print_newline ();
     print_newline ();
     print_string "Gen "; print_int i;
     print_newline ();
@@ -554,9 +595,12 @@ let ()=
     while not (est_vide refill_file) do
       let plat = defile refill_file in
       enfile !f plat;
-    done;
+    done;*)
 
-    let ffa = _1er_essai_rbt !f !fa dim_t dico in match ffa with |(a,b)-> (f:=a;fa:=b)
+    let ffa = _1er_essai_rbt !f !fa dim_t gen_cour dico in match ffa with |(a,b)-> (f:=a;fa:=b);
+    if solution_dans_tab_hach gen_cour dim_t vRouge i then raise (Fin "Une solution a été trouvée")
+    else if est_vide !f then raise (Fin "Il n'y a aucune solutions")
+    else Hashtbl.clear gen_cour
 
   done))
 
